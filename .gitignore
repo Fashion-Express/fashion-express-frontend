@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 .idea
+# Design source: the bundled mockup canvas the UI was built from.
+# Kept out of history — it is a ~600KB single-file bundle.
+OrgMS UI Mockups.html
