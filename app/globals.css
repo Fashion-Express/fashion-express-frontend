@@ -1,26 +1,233 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   OrgMS design tokens — taken from "OrgMS UI Mockups.html".
+
+   Every colour is a CSS variable so the runtime theme controls (accent swatch +
+   light/dark/system) can repaint the console without a rebuild. Two knobs are
+   set on <html> by the server, from cookies, so the first paint is already
+   correct: `data-theme` ("light" | "dark" | absent = follow the OS) and
+   `--accent`.
+
+   Palette roles, rather than colour names, because the same variable has to
+   mean the same thing in both themes.
+--------------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --shell: #17140f; /* sidebar + login key art — identical in both themes */
+  --canvas: #fcfaf8; /* the page behind the cards */
+  --surface: #ffffff; /* cards, table backgrounds, the top bar */
+  --subtle: #f5f2ee; /* filled inputs, inline info strips */
+  --subtle-hover: #f7f4f0; /* table row hover */
+
+  /* Text */
+  --ink: #1a1714; /* headings, primary values */
+  --ink-soft: #3a342e; /* control values */
+  --muted: #7c736a; /* body copy */
+  --faint: #9a9189; /* placeholders, meta, counts */
+  --eyebrow: #a29a91; /* breadcrumb line above a page title */
+
+  /* Lines */
+  --line: rgb(26 23 20 / 0.09);
+  --line-strong: rgb(26 23 20 / 0.16);
+
+  /* Accent — overridden inline on <html> from the theme cookie */
+  --accent: #127a5e;
+  --accent-ink: #ffffff;
+
+  /* Semantic pairs: foreground + its tinted background */
+  --success: #0e5f49;
+  --success-bg: #e7f2ee;
+  --danger: #a6362b;
+  --danger-bg: #fbedea;
+  --warning: #8a6402;
+  --warning-bg: #f7f1e4;
+  --info: #33518f;
+  --info-bg: #eef1f8;
+
+  /* Sidebar (dark in both themes, so these never flip) */
+  --shell-ink: #f6f3ef;
+  --shell-muted: #9c948a;
+  --shell-faint: #6e665c;
+  --shell-label: #5e574e;
+  --shell-hover: rgb(255 255 255 / 0.06);
+  --shell-active: rgb(255 255 255 / 0.08);
+  --shell-avatar: #2e2822;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* Dark theme. Declared twice on purpose: once for "system" (no data-theme
+   attribute, guarded so an explicit light choice still wins) and once for the
+   explicit choice, so the toggle overrides the OS in both directions. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --canvas: #0f0d0a;
+    --surface: #17140f;
+    --subtle: rgb(255 255 255 / 0.04);
+    --subtle-hover: rgb(255 255 255 / 0.06);
+
+    --ink: #f6f3ef;
+    --ink-soft: #c9c1b6;
+    --muted: #9c948a;
+    --faint: #6e665c;
+    --eyebrow: #6e665c;
+
+    --line: rgb(255 255 255 / 0.08);
+    --line-strong: rgb(255 255 255 / 0.16);
+
+    --success: #6ee7b7;
+    --success-bg: rgb(20 160 110 / 0.14);
+    --danger: #fca5a0;
+    --danger-bg: rgb(166 54 43 / 0.2);
+    --warning: #e8c56b;
+    --warning-bg: rgb(183 129 3 / 0.18);
+    --info: #a8bdf0;
+    --info-bg: rgb(63 93 158 / 0.2);
   }
 }
 
+:root[data-theme="dark"] {
+  --canvas: #0f0d0a;
+  --surface: #17140f;
+  --subtle: rgb(255 255 255 / 0.04);
+  --subtle-hover: rgb(255 255 255 / 0.06);
+
+  --ink: #f6f3ef;
+  --ink-soft: #c9c1b6;
+  --muted: #9c948a;
+  --faint: #6e665c;
+  --eyebrow: #6e665c;
+
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.16);
+
+  --success: #6ee7b7;
+  --success-bg: rgb(20 160 110 / 0.14);
+  --danger: #fca5a0;
+  --danger-bg: rgb(166 54 43 / 0.2);
+  --warning: #e8c56b;
+  --warning-bg: rgb(183 129 3 / 0.18);
+  --info: #a8bdf0;
+  --info-bg: rgb(63 93 158 / 0.2);
+}
+
+/* --------------------------------------------------------------------------
+   Expose the tokens to Tailwind as utilities: bg-surface, text-muted,
+   border-line, rounded-card, h-control, and so on.
+-------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-shell: var(--shell);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-subtle-hover: var(--subtle-hover);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-eyebrow: var(--eyebrow);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  --color-shell-ink: var(--shell-ink);
+  --color-shell-muted: var(--shell-muted);
+  --color-shell-faint: var(--shell-faint);
+  --color-shell-label: var(--shell-label);
+  --color-shell-hover: var(--shell-hover);
+  --color-shell-active: var(--shell-active);
+  --color-shell-avatar: var(--shell-avatar);
+
+  --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
+
+  /* Radii, straight from the mockup */
+  --radius-badge: 5px;
+  --radius-control: 9px;
+  --radius-field: 11px;
+  --radius-card: 13px;
+  --radius-screen: 16px;
+
+  /* Control heights, so a filter row and a form line up without magic numbers */
+  --spacing-filter: 36px;
+  --spacing-control: 38px;
+  --spacing-input: 40px;
+  --spacing-tall: 48px;
+
+  /* Shell metrics */
+  --spacing-sidebar: 236px;
+  --spacing-topbar: 66px;
+
+  --shadow-card:
+    0 1px 2px rgb(26 23 20 / 0.06), 0 18px 50px -28px rgb(26 23 20 / 0.28);
+  --shadow-modal: 0 30px 60px -20px rgb(26 23 20 / 0.5);
+  --shadow-lift: 0 8px 18px -8px rgb(26 23 20 / 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   Base
+-------------------------------------------------------------------------- */
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* One focus treatment for the whole console: the accent ring from the mockup's
+   focused input. `color-mix` keeps it correct for every accent swatch. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.focus-ring:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* Numerals should line up down a column wherever they are shown. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
