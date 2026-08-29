@@ -40,6 +40,10 @@ export default async function ConsoleLayout({ children }: LayoutProps<"/">) {
     <ConsoleFrame
       groups={groups}
       user={{
+        // The account menu labels itself with the USERNAME — what the person
+        // signs in with, and what `created_by` shows them as across the
+        // console. The display name is the friendlier heading inside it.
+        username: me.username,
         name: me.displayName || me.username,
         role: me.userType.code,
         initials: (me.displayName || me.username).slice(0, 2).toUpperCase(),

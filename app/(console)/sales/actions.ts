@@ -35,9 +35,20 @@ const saleSchema = z.object({
  * a repeating group in a plain form has no other shape. They are reassembled
  * here rather than in the browser, so the payload the API sees is built on the
  * server in every case — including a submit that happened before hydration.
+ *
+ * An incomplete line is REPORTED, never skipped. Dropping it silently meant
+ * that adding three lines and filling two saved a sale with two, with nothing
+ * on screen to say the third had gone — and a missing line on an invoice is not
+ * the kind of thing anyone re-counts before sending it.
  */
-function readItems(formData: FormData): SaleItemInput[] {
+function readItems(formData: FormData): {
+  items: SaleItemInput[];
+  problems: Record<string, string>;
+  incompleteLines: number[];
+} {
   const items: SaleItemInput[] = [];
+  const problems: Record<string, string> = {};
+  const incompleteLines: number[] = [];
 
   for (let index = 0; ; index += 1) {
     const itemType = text(formData, `items.${index}.itemType`);
@@ -52,7 +63,11 @@ function readItems(formData: FormData): SaleItemInput[] {
     // mixed state unrepresentable. Sending the wrong field would be refused.
     if (itemType === "inventory") {
       const inventoryItemId = text(formData, `items.${index}.inventoryItemId`);
-      if (!inventoryItemId) continue;
+      if (!inventoryItemId) {
+        problems[`items.${index}.inventoryItemId`] = "Choose a product for this line.";
+        incompleteLines.push(index + 1);
+        continue;
+      }
       items.push({
         itemType: "inventory",
         inventoryItemId,
@@ -64,7 +79,11 @@ function readItems(formData: FormData): SaleItemInput[] {
       });
     } else {
       const description = text(formData, `items.${index}.description`);
-      if (!description) continue;
+      if (!description) {
+        problems[`items.${index}.description`] = "Describe the machine on this line.";
+        incompleteLines.push(index + 1);
+        continue;
+      }
       items.push({
         itemType: "non_inventory",
         description,
@@ -74,7 +93,7 @@ function readItems(formData: FormData): SaleItemInput[] {
     }
   }
 
-  return items;
+  return { items, problems, incompleteLines };
 }
 
 async function submitSale(
@@ -93,7 +112,21 @@ async function submitSale(
   });
   if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
 
-  const items = readItems(formData);
+  const { items, problems, incompleteLines } = readItems(formData);
+
+  // An incomplete line stops the save rather than vanishing from it. The error
+  // lands on the line's own control as well, so a long form does not send the
+  // user hunting for which of eight rows is meant.
+  if (incompleteLines.length > 0) {
+    return {
+      formError:
+        incompleteLines.length === 1
+          ? `Line ${incompleteLines[0]} is incomplete. Complete it or remove it before saving.`
+          : `Lines ${incompleteLines.join(", ")} are incomplete. Complete them or remove them before saving.`,
+      fieldErrors: problems,
+    };
+  }
+
   // BR-05 — a sale with no lines is refused by the API too; catching it here
   // saves a round trip and says so in the form's own words.
   if (items.length === 0) {

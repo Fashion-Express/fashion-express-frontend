@@ -25,6 +25,23 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
 
+  /**
+   * The ONE item to highlight: the longest href that the current path sits
+   * under.
+   *
+   * A plain per-item `startsWith` lights up every ancestor as well — on
+   * /bills/review both "Review bills" and "My bills" (/bills) matched, so two
+   * entries appeared selected and two carried `aria-current="page"`, which is
+   * a lie to a screen reader as much as it is to the eye. Sorting by length
+   * and taking the first picks the most specific match, so a nested route
+   * highlights its own entry and a route with no entry of its own (/bills/submit,
+   * /reports/ledger) still highlights the section it belongs to.
+   */
+  const activeHref = groups
+    .flatMap((group) => group.items.map((item) => item.href))
+    .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
+
   return (
     <div className="flex h-full w-sidebar flex-none flex-col gap-5 overflow-y-auto bg-shell px-3.5 py-5">
       <Link
@@ -48,8 +65,7 @@ export function Sidebar({
             </p>
 
             {group.items.map((item) => {
-              const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = item.href === activeHref;
               const ready = IMPLEMENTED.has(item.href);
 
               if (!ready) {

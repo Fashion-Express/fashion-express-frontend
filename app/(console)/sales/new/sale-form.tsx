@@ -199,7 +199,12 @@ export function SaleForm({
               */}
               <div className="sm:col-span-5">
                 {line.itemType === "inventory" ? (
-                  <Field name={`items.${index}.inventoryItemId`} label="Inventory item" required>
+                  <Field
+                    name={`items.${index}.inventoryItemId`}
+                    label="Inventory item"
+                    required
+                    error={state.fieldErrors?.[`items.${index}.inventoryItemId`]}
+                  >
                     {(props) => (
                       <Select
                         {...props}
@@ -229,7 +234,12 @@ export function SaleForm({
                     )}
                   </Field>
                 ) : (
-                  <Field name={`items.${index}.description`} label="Description" required>
+                  <Field
+                    name={`items.${index}.description`}
+                    label="Description"
+                    required
+                    error={state.fieldErrors?.[`items.${index}.description`]}
+                  >
                     {(props) => (
                       <Input
                         {...props}

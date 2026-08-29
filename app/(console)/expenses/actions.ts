@@ -15,15 +15,34 @@ import { parseMoneyInput } from "@/lib/format/money";
  * ledger has already moved (BR-40).
  */
 
-const schema = z.object({
+const baseFields = {
   date: z.string().min(1, "Choose the date of the expense."),
   description: z.string().min(1, "Describe what this was for."),
-  expenseCategoryId: z.string().min(1, "Every expense is classified — choose a category."),
   paymentMethodId: z.string().optional(),
   paidTo: z.string().optional(),
   receiptNumber: z.string().optional(),
   notes: z.string().optional(),
   shopId: z.string().optional(),
+};
+
+const createSchema = z.object({
+  ...baseFields,
+  expenseCategoryId: z.string().min(1, "Every expense is classified — choose a category."),
+});
+
+/**
+ * On a PATCH the category is OPTIONAL, and blank means "leave it as it was".
+ *
+ * It cannot be required here: the expense read shape returns `category_code`
+ * and `category_label` but no category id, so the edit form has nothing to
+ * preselect the picker with. Requiring it made every first save of an edit fail
+ * with "Every expense is classified" even when the user had changed only the
+ * amount. Omitting the field instead is the same contract every other optional
+ * field on this form already has — absent means unchanged.
+ */
+const updateSchema = z.object({
+  ...baseFields,
+  expenseCategoryId: z.string().optional(),
 });
 
 function readForm(formData: FormData) {
@@ -53,7 +72,7 @@ export async function createExpenseAction(
   const amount = parseMoneyInput(formData.get("amount"));
   if (!amount) return { fieldErrors: { amount: "Enter an amount." } };
 
-  const parsed = schema.safeParse(readForm(formData));
+  const parsed = createSchema.safeParse(readForm(formData));
   if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
 
   let id: string;
@@ -83,7 +102,7 @@ export async function updateExpenseAction(
   const amount = parseMoneyInput(formData.get("amount"));
   if (!amount) return { fieldErrors: { amount: "Enter an amount." } };
 
-  const parsed = schema.safeParse(readForm(formData));
+  const parsed = updateSchema.safeParse(readForm(formData));
   if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
 
   try {

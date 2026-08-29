@@ -8,11 +8,18 @@ import { Button, type ButtonVariant } from "@/components/ui/button";
  * A submit button that disables itself while its form is in flight, so a slow
  * save cannot be submitted twice. `useFormStatus` reads the state of the
  * enclosing <form>, which is why this has to be its own client component.
+ *
+ * `disabled` is OR-ed with `pending` rather than left to the spread. A caller
+ * passing its own condition — `disabled={isSelf}`, `disabled={!dirty}` — used
+ * to overwrite the pending state with `false` the moment that condition
+ * cleared, silently removing the double-submit guard from exactly the forms
+ * careful enough to have a second one.
  */
 export function SubmitButton({
   children,
   pendingLabel,
   variant = "accent",
+  disabled,
   ...props
 }: Omit<ComponentProps<typeof Button>, "type"> & {
   pendingLabel?: string;
@@ -21,7 +28,12 @@ export function SubmitButton({
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" variant={variant} disabled={pending} {...props}>
+    <Button
+      type="submit"
+      variant={variant}
+      {...props}
+      disabled={pending || disabled}
+    >
       {pending ? (pendingLabel ?? "Saving…") : children}
     </Button>
   );

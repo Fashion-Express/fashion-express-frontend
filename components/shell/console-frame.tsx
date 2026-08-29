@@ -20,16 +20,14 @@ export function ConsoleFrame({
   user,
   dateLabel,
   shops,
-  currentShopId,
   lowStockCount,
   signOutAction,
   children,
 }: {
   groups: NavGroup[];
-  user: { name: string; role: string; initials: string };
+  user: { username: string; name: string; role: string; initials: string };
   dateLabel: string;
   shops: ShopOption[];
-  currentShopId?: string;
   lowStockCount: number;
   signOutAction: () => Promise<void>;
   children: ReactNode;
@@ -81,11 +79,11 @@ export function ConsoleFrame({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
-          username={user.name}
+          user={user}
           dateLabel={dateLabel}
           shops={shops}
-          currentShopId={currentShopId}
           lowStockCount={lowStockCount}
+          signOutAction={signOutAction}
           menuButton={
             <button
               type="button"

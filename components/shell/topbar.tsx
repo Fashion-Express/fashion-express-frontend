@@ -2,26 +2,27 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ShopOption } from "@/lib/api/types";
 import { ShopSwitcher } from "./shop-switcher";
+import { UserMenu } from "./user-menu";
 
 /**
  * The mockup's 66px white strip. It carries the page's own title (set per page),
  * the shop filter, and the low-stock warning.
  */
 export function Topbar({
-  username,
+  user,
   /** Formatted on the server: the Dhaka date, rendered once, no hydration drift. */
   dateLabel,
   shops,
-  currentShopId,
   lowStockCount,
   menuButton,
+  signOutAction,
 }: {
-  username: string;
+  user: { username: string; name: string; role: string; initials: string };
   dateLabel: string;
   shops: ShopOption[];
-  currentShopId?: string;
   lowStockCount: number;
   menuButton?: ReactNode;
+  signOutAction: () => Promise<void>;
 }) {
   return (
     <header className="flex h-topbar flex-none items-center gap-4 border-b border-line bg-surface px-5 sm:px-7">
@@ -32,7 +33,7 @@ export function Topbar({
           Fashion Express
         </span>
         <span className="font-mono text-[11px] leading-none text-faint">
-          {dateLabel} · {username}
+          {dateLabel}
         </span>
       </div>
 
@@ -52,7 +53,15 @@ export function Topbar({
         </Link>
       )}
 
-      <ShopSwitcher shops={shops} current={currentShopId} />
+      <ShopSwitcher shops={shops} />
+
+      <UserMenu
+        username={user.username}
+        displayName={user.name}
+        role={user.role}
+        initials={user.initials}
+        signOutAction={signOutAction}
+      />
     </header>
   );
 }

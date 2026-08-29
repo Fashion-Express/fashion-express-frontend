@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
  * Built on <dialog>, which gives focus trapping, Escape, inertness of the page
  * behind and the top layer for free — all things a hand-rolled overlay gets
  * wrong. `showModal()` has to be called imperatively, hence the effect.
+ *
+ * The title id is generated per instance. Several of these are routinely
+ * rendered at once — one Remove dialog per line on a sale, one Pay dialog per
+ * purchase on a supplier — and a hardcoded id made every `aria-labelledby` on
+ * the page resolve to whichever dialog happened to render first.
  */
 export function Modal({
   open,
@@ -24,6 +29,7 @@ export function Modal({
   width?: "sm" | "md";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = ref.current;
@@ -48,12 +54,12 @@ export function Modal({
         "backdrop:bg-[rgb(26_23_20_/_0.5)]",
         width === "sm" ? "max-w-[420px]" : "max-w-[560px]",
       )}
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId}
     >
       <div className="flex flex-col gap-4 p-6">
         <div className="flex items-start justify-between gap-4">
           <h2
-            id="modal-title"
+            id={titleId}
             className="font-sans text-[15px] font-semibold text-ink"
           >
             {title}

@@ -30,7 +30,17 @@ export function ExpenseForm({
   submitLabel: string;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, {});
+  const editing = Boolean(expense);
 
+  /*
+   * The expense read shape carries `category_label` and `method_label` but no
+   * ids, so neither picker can be preselected. Rather than showing a blank that
+   * reads as "no category" for a record that certainly has one, the current
+   * value becomes the empty option's label — the same trick the user form uses
+   * for job position and department, which face the identical API shape.
+   * Leaving it alone then submits nothing for that field, and the API leaves it
+   * as it was.
+   */
   return (
     <form action={formAction} className="mx-auto w-full max-w-[760px]">
       {expense && <input type="hidden" name="id" value={expense.id} />}
@@ -68,12 +78,15 @@ export function ExpenseForm({
           <Field
             name="expenseCategoryId"
             label="Category"
-            required
+            required={!editing}
             error={state.fieldErrors?.expenseCategoryId}
+            hint={editing ? "Leave as it is to keep the current category." : undefined}
           >
             {(props) => (
               <Select {...props} defaultValue="">
-                <option value="">Select category</option>
+                <option value="">
+                  {editing ? expense?.category_label : "Select category"}
+                </option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>{category.label}</option>
                 ))}
@@ -87,11 +100,17 @@ export function ExpenseForm({
             name="paymentMethodId"
             label="Payment method"
             error={state.fieldErrors?.paymentMethodId}
-            hint="Optional — not every expense records how it was settled."
+            hint={
+              editing
+                ? "Leave as it is to keep the current method."
+                : "Optional — not every expense records how it was settled."
+            }
           >
             {(props) => (
               <Select {...props} defaultValue="">
-                <option value="">Not recorded</option>
+                <option value="">
+                  {editing ? (expense?.method_label ?? "Not recorded") : "Not recorded"}
+                </option>
                 {methods.map((method) => (
                   <option key={method.id} value={method.id}>{method.label}</option>
                 ))}

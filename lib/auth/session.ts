@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { apiFetch, SESSION_COOKIE } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import type { Id } from "@/lib/api/types";
+import type { Permission } from "./permissions";
 
 /**
  * `GET /api/me` — the route the shell actually wants. better-auth's own
@@ -65,13 +66,16 @@ export async function requireSession(): Promise<Me> {
  * proof that the caller lacked the permission.
  *
  * An Owner (`isSuperuser`) short-circuits every check, matching the backend.
+ * That short-circuit is why the permission name is TYPED: a name the backend
+ * never seeds is unreachable for everyone else while passing silently for an
+ * Owner, so a typo here is invisible to whoever is usually testing.
  */
-export function can(me: Me | null, permission: string): boolean {
+export function can(me: Me | null, permission: Permission): boolean {
   if (!me) return false;
   return me.userType.isSuperuser || me.permissions.includes(permission);
 }
 
-export function canAny(me: Me | null, permissions: string[]): boolean {
+export function canAny(me: Me | null, permissions: readonly Permission[]): boolean {
   return permissions.some((permission) => can(me, permission));
 }
 
