@@ -52,7 +52,13 @@ export const getMe = cache(async (): Promise<Me | null> => {
 /** For any page or layout behind the console shell. */
 export async function requireSession(): Promise<Me> {
   const me = await getMe();
-  if (!me) redirect("/login");
+  /*
+   * `session_expired` asks `proxy.ts` to clear the cookie on the way through.
+   * A Server Component cannot delete one itself, and a cookie the API has
+   * rejected must not survive this redirect: the proxy trusts that a cookie
+   * EXISTS, so it would bounce /login straight back here and loop forever.
+   */
+  if (!me) redirect("/login?session_expired=1");
   return me;
 }
 
