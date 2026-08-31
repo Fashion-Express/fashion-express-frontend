@@ -268,8 +268,15 @@ export function deleteSaleItem(id: Id, itemId: Id) {
   }>(`/sales/${id}/items/${itemId}`, { method: "DELETE" });
 }
 
-/** FR-02.9 — the printable invoice, or the distinct QUOTATION template when the
- * sale is a quotation. BR-01 applies: another user's invoice is a 404. */
-export function invoiceUrl(id: Id): string {
-  return `/api/download/documents/sales/${id}/invoice`;
+/**
+ * FR-02.9 — the printable invoice, or the distinct QUOTATION template when the
+ * sale is a quotation. BR-01 applies: another user's invoice is a 404.
+ *
+ * A PAGE of this app, not the API's PDF. The document is meant to be read and
+ * checked before it is printed, and the browser's own print dialog still offers
+ * "Save as PDF" to anyone who wants the file. `GET /documents/sales/:id/invoice`
+ * remains on the API for anything that needs the PDF bytes directly.
+ */
+export function invoicePath(id: Id): string {
+  return `/sales/${id}/invoice`;
 }

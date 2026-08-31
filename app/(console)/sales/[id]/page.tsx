@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api/errors";
 import { customerPaymentMethods, optionLabel } from "@/lib/api/reference";
-import { getSale, invoiceUrl } from "@/lib/api/sales";
+import { getSale, invoicePath } from "@/lib/api/sales";
 import { can, requireSession } from "@/lib/auth/session";
 import { formatDate, formatDateTime, todayInDhaka } from "@/lib/format/date";
 import { formatMoney, formatQuantity, isPositive } from "@/lib/format/money";
@@ -68,14 +68,11 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
         actions={
           <>
             <ButtonLink href="/sales" variant="outline">← Back</ButtonLink>
-            <a
-              href={invoiceUrl(sale.id)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-control items-center rounded-control border border-line bg-surface px-4 text-[12.5px] font-semibold text-ink-soft no-underline transition-colors hover:bg-subtle"
-            >
-              {isQuotation ? "Print quotation" : "Print invoice"}
-            </a>
+            {/* Its own tab: the document is read before it is printed, and
+                this screen stays where it was. */}
+            <ButtonLink href={invoicePath(sale.id)} target="_blank" variant="outline">
+              {isQuotation ? "View quotation" : "View invoice"}
+            </ButtonLink>
             {isQuotation && can(me, "change_sale") && <ConvertQuotation saleId={sale.id} />}
             {isDraft && can(me, "finalize_sale") && (
               <FinalizeSale saleId={sale.id} total={sale.total_amount} />

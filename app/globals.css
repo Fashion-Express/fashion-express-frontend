@@ -231,3 +231,30 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Print.
+
+   Only the printable documents under app/(print) are laid out for paper; the
+   console screens are not, and nothing here tries to make them so.
+-------------------------------------------------------------------------- */
+
+/* Screen chrome that must never reach the paper: the Print button itself,
+   "back" links, anything the reader cannot act on once it is printed. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* A dark table header or a filled balance bar is the document's structure, not
+   decoration — browsers drop background fills when printing unless told
+   otherwise, which would leave white text on white paper. */
+.print-fill {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+@page {
+  margin: 14mm;
+}
