@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api/errors";
 import { getCustomer } from "@/lib/api/customers";
 import { requireSession } from "@/lib/auth/session";
+import { formatDate } from "@/lib/format/date";
 import { Card, DetailList, PageBody } from "@/components/ui/surfaces";
 import { CustomerHeader } from "./customer-header";
 
@@ -37,6 +38,7 @@ export default async function CustomerProfilePage(props: PageProps<"/customers/[
               { label: "City", value: customer.city || "—" },
               { label: "Shop", value: customer.shop_name },
               { label: "Status", value: customer.status_label },
+              { label: "Created", value: formatDate(customer.created_at), mono: true },
               { label: "Address", value: customer.address || "—" },
             ]}
           />

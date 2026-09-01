@@ -11,9 +11,12 @@ import { deleteExpenseAction } from "../actions";
 export function DeleteExpense({
   expenseId,
   description,
+  variant = "danger",
 }: {
   expenseId: string;
   description: string;
+  /** `ghost` for a table row, where a filled danger button shouts. */
+  variant?: "danger" | "ghost";
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<ActionState, FormData>(
@@ -23,7 +26,13 @@ export function DeleteExpense({
 
   return (
     <>
-      <Button variant="danger" onClick={() => setOpen(true)}>Delete</Button>
+      <Button
+        variant={variant}
+        size={variant === "ghost" ? "sm" : "md"}
+        onClick={() => setOpen(true)}
+      >
+        Delete
+      </Button>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Delete this expense?">
         {state.formError && <Alert tone="danger">{state.formError}</Alert>}

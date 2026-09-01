@@ -62,6 +62,19 @@ function readForm(formData: FormData) {
   };
 }
 
+/**
+ * An optional reference the user emptied.
+ *
+ * `text()` collapses "" to undefined, which the API reads as "leave alone" —
+ * correct on create, wrong on edit, where choosing "Uncategorised" is a
+ * deliberate clearing. The distinction is whether the form rendered the field
+ * at all, so this reads the raw value rather than the trimmed one.
+ */
+function cleared(formData: FormData, name: string): null | undefined {
+  const raw = formData.get(name);
+  return typeof raw === "string" && raw.trim() === "" ? null : undefined;
+}
+
 /** The API takes whole numbers for boxes and minimum stock, decimals for the rest. */
 function toPayload(data: z.infer<typeof updateSchema>) {
   return {
@@ -132,6 +145,9 @@ export async function updateInventoryAction(
     await updateInventoryItem(id, {
       ...toPayload(parsed.data),
       unitId: parsed.data.unitId,
+      // Emptying either picker is a clearing, not an omission.
+      categoryId: parsed.data.categoryId ?? cleared(formData, "categoryId"),
+      supplierId: parsed.data.supplierId ?? cleared(formData, "supplierId"),
     });
   } catch (error) {
     return toActionState(error);

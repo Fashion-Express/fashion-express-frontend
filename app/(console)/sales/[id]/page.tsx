@@ -2,16 +2,27 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api/errors";
 import { customerPaymentMethods, optionLabel } from "@/lib/api/reference";
-import { getSale, invoicePath } from "@/lib/api/sales";
+import {
+  getSale,
+  invoicePath,
+  receiptPath,
+  statementPath,
+} from "@/lib/api/sales";
+import { listInventoryOptions } from "@/lib/api/inventory";
+import { firstParam } from "@/lib/api/types";
+import { safeRedirect } from "@/lib/form";
 import { can, requireSession } from "@/lib/auth/session";
 import { formatDate, formatDateTime, todayInDhaka } from "@/lib/format/date";
 import { formatMoney, formatQuantity, isPositive } from "@/lib/format/money";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, DownloadLink } from "@/components/ui/button";
 import { Alert, Card, DetailList, EmptyState, PageBody, PageHeader, StatTile, StatusPill } from "@/components/ui/surfaces";
-import { Table, Td, Th, Tr } from "@/components/ui/table";
+import { RowActions, RowLink, Table, Td, Th, Tr } from "@/components/ui/table";
 import {
+  AddSaleItem,
   ConvertQuotation,
   DeleteSale,
+  DeleteSalePayment,
+  EditSalePayment,
   FinalizeSale,
   RecordSalePayment,
   RemoveSaleItem,
@@ -30,6 +41,14 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
   const { id } = await props.params;
   const me = await requireSession();
 
+  /**
+   * Where "Back" goes. A sale is reachable from the sales list and from a
+   * customer's Orders tab, and returning to the list from the latter loses the
+   * reader's place. `safeRedirect` keeps this to a path on this origin — an
+   * absolute or protocol-relative URL here would be an open redirect.
+   */
+  const backHref = safeRedirect(firstParam((await props.searchParams).from), "/sales");
+
   let sale;
   try {
     sale = await getSale(id);
@@ -45,13 +64,41 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
   const isDraft = sale.status_code === "draft";
   const isFinalized = sale.status_code === "finalized";
 
-  const mayPay = can(me, "add_salepayment") && isFinalized && isPositive(sale.balance_due);
-  const methods = mayPay ? await customerPaymentMethods().catch(() => []) : [];
+  const isCancelled = sale.status_code === "cancelled";
+
+  /*
+   * BR-11 names exactly two statuses that cannot take a payment: a cancelled
+   * sale and a quotation. A DRAFT can — this screen used to require finalised,
+   * which was stricter than the API and left a draft with money against it no
+   * way to record it.
+   */
+  const mayPay =
+    can(me, "add_salepayment") &&
+    !isQuotation &&
+    !isCancelled &&
+    isPositive(sale.balance_due);
+  // Also needed to EDIT a receipt's method, which stays available after the
+  // balance reaches zero — so the list is fetched for either reason.
+  const mayEditPayments = can(me, "change_salepayment") && sale.payments.length > 0;
+  const methods =
+    mayPay || mayEditPayments ? await customerPaymentMethods().catch(() => []) : [];
+  const methodOptions = methods.map((m) => ({ id: m.id, label: optionLabel(m) }));
 
   // FR-02.6.1 — editing the LINES of a finalised sale is restricted to
   // administrators. A manager may see one but not change it.
   const mayEditFinalizedLines = me.userType.isSuperuser;
-  const mayRemoveLines = isFinalized ? mayEditFinalizedLines : can(me, "change_sale");
+  const mayEditLines = isFinalized ? mayEditFinalizedLines : can(me, "change_sale");
+  const mayRemoveLines = mayEditLines;
+  // A cancelled sale is closed; nothing is added to it.
+  const mayAddLines = mayEditLines && !isCancelled;
+
+  /*
+   * BR-50 — a sale may only draw on stock held by its OWN shop, so the picker
+   * is fed per shop. Fetched only when a line could actually be added.
+   */
+  const products = mayAddLines
+    ? await listInventoryOptions(sale.shop_id).catch(() => [])
+    : [];
 
   return (
     <>
@@ -67,7 +114,7 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
         }
         actions={
           <>
-            <ButtonLink href="/sales" variant="outline">← Back</ButtonLink>
+            <ButtonLink href={backHref} variant="outline">← Back</ButtonLink>
             {/* Its own tab: the document is read before it is printed, and
                 this screen stays where it was. */}
             <ButtonLink href={invoicePath(sale.id)} target="_blank" variant="outline">
@@ -141,7 +188,24 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
           )}
         </Card>
 
-        <Card title="Items" bodyClassName="p-0">
+        <Card
+          title="Items"
+          actions={
+            mayAddLines ? (
+              <AddSaleItem
+                saleId={sale.id}
+                finalized={isFinalized}
+                products={products.map((product) => ({
+                  id: product.id,
+                  label: `${product.part_name} (${product.part_code})`,
+                  unitPrice: product.unit_price,
+                  inStock: `${formatQuantity(product.quantity)} ${product.unit_label}`,
+                }))}
+              />
+            ) : null
+          }
+          bodyClassName="p-0"
+        >
           <div className="px-5 pb-3">
             <Table
               head={
@@ -204,14 +268,23 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
           <Card
             title="Payments"
             actions={
-              mayPay ? (
-                <RecordSalePayment
-                  saleId={sale.id}
-                  balanceDue={sale.balance_due}
-                  methods={methods.map((m) => ({ id: m.id, label: optionLabel(m) }))}
-                  today={todayInDhaka()}
-                />
-              ) : null
+              <>
+                {/* The sale and its payment history as one document. Offered
+                    only when there is a history to print. */}
+                {sale.payments.length > 0 && (
+                  <DownloadLink href={statementPath(sale.id)} size="sm">
+                    Download PDF
+                  </DownloadLink>
+                )}
+                {mayPay && (
+                  <RecordSalePayment
+                    saleId={sale.id}
+                    balanceDue={sale.balance_due}
+                    methods={methodOptions}
+                    today={todayInDhaka()}
+                  />
+                )}
+              </>
             }
             bodyClassName="p-0"
           >
@@ -222,7 +295,7 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
                   description={
                     isFinalized
                       ? "Each payment gets its own receipt number and posts a credit to the ledger."
-                      : "Payments can be taken once the sale is finalized."
+                      : "Each payment gets its own receipt number. Nothing counts toward revenue until the sale is finalized."
                   }
                 />
               </div>
@@ -236,16 +309,49 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
                       <Th>Method</Th>
                       <Th>Details</Th>
                       <Th align="right">Amount</Th>
+                      <Th align="right">Actions</Th>
                     </>
                   }
                 >
                   {sale.payments.map((payment) => (
                     <Tr key={payment.id}>
-                      <Td mono className="text-accent">{payment.receipt_number}</Td>
+                      <Td mono>{payment.receipt_number}</Td>
                       <Td mono>{formatDate(payment.payment_date)}</Td>
                       <Td>{payment.method_label}</Td>
                       <Td className="max-w-[220px] truncate">{payment.notes || "—"}</Td>
                       <Td align="right" mono>{formatMoney(payment.amount)}</Td>
+                      <Td align="right">
+                        <RowActions>
+                          {/* Its own tab, as the old console had it: the
+                              receipt is read and printed while this screen
+                              stays where it was. */}
+                          <RowLink
+                            href={receiptPath(sale.id, payment.id)}
+                            target="_blank"
+                          >
+                            Receipt
+                          </RowLink>
+                          {can(me, "change_salepayment") && (
+                            <EditSalePayment
+                              paymentId={payment.id}
+                              receiptNumber={payment.receipt_number}
+                              amount={payment.amount}
+                              paymentDate={payment.payment_date}
+                              methodId={payment.payment_method_id}
+                              methods={methodOptions}
+                              notes={payment.notes}
+                            />
+                          )}
+                          {can(me, "delete_salepayment") && (
+                            <DeleteSalePayment
+                              paymentId={payment.id}
+                              receiptNumber={payment.receipt_number}
+                              amount={payment.amount}
+                              fromBatch={payment.batch_id !== null}
+                            />
+                          )}
+                        </RowActions>
+                      </Td>
                     </Tr>
                   ))}
                 </Table>

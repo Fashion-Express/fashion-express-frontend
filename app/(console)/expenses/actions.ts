@@ -94,7 +94,7 @@ export async function updateExpenseAction(
   if (!can(me, "change_expense") || !isManager(me)) {
     return {
       formError:
-        "Only managers may edit an expense — the ledger entry moves with it (BR-33).",
+        "Only managers may edit an expense — the ledger entry moves with it.",
     };
   }
 
@@ -122,7 +122,7 @@ export async function deleteExpenseAction(
   if (!can(me, "delete_expense") || !isManager(me)) {
     return {
       formError:
-        "Only managers may delete an expense — it removes the ledger entry (BR-33, BR-40).",
+        "Only managers may delete an expense — it removes the ledger entry.",
     };
   }
 

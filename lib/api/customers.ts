@@ -22,6 +22,8 @@ export type Customer = {
   status_label: string;
   shop_id: Id;
   shop_name: string;
+  /** A timestamp, so it renders through `formatDate` as a Dhaka day (NFR-05). */
+  created_at: string;
 };
 
 export type CustomerListParams = {
@@ -185,4 +187,37 @@ export function recordCustomerPayment(id: Id, input: CustomerPaymentInput) {
     method: "POST",
     body: input,
   });
+}
+
+/**
+ * BR-19's combined receipt, read back.
+ *
+ * Deliberately NOT `PaymentAllocation` above: that is the shape `POST` answers
+ * with, in camelCase. This is a read, so it arrives snake_case and carries the
+ * batch's own header — who recorded it, when, against which customer. Same
+ * event, two shapes, typed separately so neither drifts into the other.
+ *
+ * `batchRef` is globally unique and the route is not customer-scoped, so a
+ * caller must check `customer_number` before showing this under a customer.
+ */
+export type PaymentBatch = {
+  id: Id;
+  batch_ref: string;
+  payment_date: string;
+  total_amount: Money;
+  notes: string | null;
+  method_label: string;
+  customer_name: string;
+  customer_number: string;
+  recorded_by: string | null;
+  /** Oldest finalised sale first (BR-16), each with its own receipt (BR-18). */
+  allocations: Array<{
+    sale_number: string;
+    amount: Money;
+    receipt_number: string;
+  }>;
+};
+
+export function getPaymentBatch(batchRef: string) {
+  return apiFetch<PaymentBatch>(`/customer-payments/${batchRef}`);
 }

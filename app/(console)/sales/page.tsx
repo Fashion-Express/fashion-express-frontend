@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { listSales, type SaleStatus } from "@/lib/api/sales";
+import { listUserOptions } from "@/lib/api/users";
 import { firstParam, pageParam } from "@/lib/api/types";
-import { can, requireSession } from "@/lib/auth/session";
+import { can, isManager, requireSession } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format/date";
 import { formatMoney, isPositive, isZero } from "@/lib/format/money";
 import { ButtonLink } from "@/components/ui/button";
@@ -26,21 +27,39 @@ export default async function SalesPage(props: PageProps<"/sales">) {
   const itemType = firstParam(params.itemType) as "inventory" | "non_inventory" | undefined;
   const createdFrom = firstParam(params.createdFrom);
   const createdTo = firstParam(params.createdTo);
+  const createdById = firstParam(params.createdById);
   const shopId = firstParam(params.shopId);
   const page = pageParam(params.page);
 
   const me = await requireSession();
-  const sales = await listSales({
-    page,
-    search,
-    status,
-    itemType,
-    createdFrom,
-    createdTo,
-    shopId,
-  });
 
-  const filtered = Boolean(search || status || itemType || createdFrom || createdTo);
+  /*
+   * BR-01 — a non-manager sees only the sales they created, so "whose sale is
+   * this?" is a question they can already answer. Offering the filter would
+   * also hand them the staff list, which is not theirs to read: the API gates
+   * `/users/options` on `view_user`, and this mirrors that rather than drawing
+   * a control the fetch behind it would refuse.
+   */
+  const mayFilterByPerson = isManager(me) && can(me, "view_user");
+
+  const [sales, salespeople] = await Promise.all([
+    listSales({
+      page,
+      search,
+      status,
+      itemType,
+      createdFrom,
+      createdTo,
+      createdById,
+      shopId,
+    }),
+    // Never fatal: the list still reads without the filter.
+    mayFilterByPerson ? listUserOptions().catch(() => []) : Promise.resolve([]),
+  ]);
+
+  const filtered = Boolean(
+    search || status || itemType || createdFrom || createdTo || createdById,
+  );
 
   return (
     <>
@@ -83,7 +102,7 @@ export default async function SalesPage(props: PageProps<"/sales">) {
 
         <FilterBar
           basePath="/sales"
-          values={{ search, status, itemType, createdFrom, createdTo }}
+          values={{ search, status, itemType, createdFrom, createdTo, createdById }}
           fields={[
             { type: "search", name: "search", placeholder: "Search sale number, customer name or ID" },
             {
@@ -106,6 +125,19 @@ export default async function SalesPage(props: PageProps<"/sales">) {
                 { value: "non_inventory", label: "Machines" },
               ],
             },
+            ...(mayFilterByPerson
+              ? [
+                  {
+                    type: "select" as const,
+                    name: "createdById",
+                    label: "All salespeople",
+                    options: salespeople.map((person) => ({
+                      value: person.id,
+                      label: person.name,
+                    })),
+                  },
+                ]
+              : []),
             { type: "date", name: "createdFrom", label: "From" },
             { type: "date", name: "createdTo", label: "To" },
           ]}
@@ -184,7 +216,15 @@ export default async function SalesPage(props: PageProps<"/sales">) {
               page={sales}
               noun="sales"
               basePath="/sales"
-              searchParams={{ search, status, itemType, createdFrom, createdTo, shopId }}
+              searchParams={{
+                search,
+                status,
+                itemType,
+                createdFrom,
+                createdTo,
+                createdById,
+                shopId,
+              }}
             />
           </>
         )}

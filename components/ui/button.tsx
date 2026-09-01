@@ -69,6 +69,35 @@ export function Button({
   );
 }
 
+type DownloadLinkProps = ComponentProps<"a"> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  fullWidth?: boolean;
+};
+
+/**
+ * A button-shaped link to a file, and deliberately a PLAIN anchor.
+ *
+ * `ButtonLink` below is a `next/link`, which intercepts the click and tries a
+ * client-side navigation — against a route that answers with a PDF or a
+ * workbook that does nothing at all, silently. A download has to be a real
+ * browser navigation, so this one stays an `<a>`.
+ */
+export function DownloadLink({
+  variant = "outline",
+  size = "md",
+  fullWidth = false,
+  className,
+  ...props
+}: DownloadLinkProps) {
+  return (
+    <a
+      className={cn(classes(variant, size, fullWidth, className), "no-underline")}
+      {...props}
+    />
+  );
+}
+
 type ButtonLinkProps = ComponentProps<typeof Link> & {
   variant?: ButtonVariant;
   size?: ButtonSize;

@@ -80,6 +80,13 @@ export const NAV: NavGroup[] = [
       // FR-00.6. The mockup omits staff accounts and names "Users & Roles" as
       // its own next step; the backend has had the module all along.
       { href: "/users", label: "Users", permissions: ["view_user"], managerOnly: true },
+      // FR-12 master data. Reads are ungated on the API, but the screen exists
+      // to maintain the list, so the link is shown to whoever can write it.
+      {
+        href: "/settings/categories",
+        label: "Product categories",
+        permissions: ["manage_referencedata"],
+      },
       { href: "/settings/appearance", label: "Settings", permissions: [] },
     ],
   },
@@ -102,5 +109,6 @@ export const IMPLEMENTED = new Set([
   "/bills/review",
   "/reports",
   "/users",
+  "/settings/categories",
   "/settings/appearance",
 ]);

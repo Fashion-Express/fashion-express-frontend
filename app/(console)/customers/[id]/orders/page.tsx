@@ -3,19 +3,19 @@ import { notFound } from "next/navigation";
 import { ApiError } from "@/lib/api/errors";
 import { getCustomer, getCustomerAccount, getOutstanding } from "@/lib/api/customers";
 import { customerPaymentMethods } from "@/lib/api/reference";
+import { ordersPdfPath } from "@/lib/api/sales";
 import { can, requireSession } from "@/lib/auth/session";
-import { formatDate, formatDateTime, todayInDhaka } from "@/lib/format/date";
+import { formatDate, todayInDhaka } from "@/lib/format/date";
 import { formatMoney, isZero } from "@/lib/format/money";
 import { plural } from "@/lib/format/plural";
-import {
-  Card,
-  EmptyState,
-  PageBody,
-  StatTile,
-  StatusPill,
-} from "@/components/ui/surfaces";
+import { DownloadLink } from "@/components/ui/button";
+import { Card, EmptyState, PageBody, StatTile } from "@/components/ui/surfaces";
 import { Table, Td, Th, Tr } from "@/components/ui/table";
 import { CustomerHeader } from "../customer-header";
+import { loadPaymentBatch } from "./batch-action";
+import { loadSaleItems } from "./items-action";
+import { OrderRow } from "./order-row";
+import { PaymentReceipt } from "./payment-receipt";
 import { RecordPayment } from "./record-payment";
 
 export const metadata: Metadata = { title: "Customer orders" };
@@ -46,6 +46,14 @@ export default async function CustomerOrdersPage(
 
   // FR-03.5.1 — the payment action is offered only when something is owed.
   const owes = !isZero(outstanding.outstanding);
+
+  /**
+   * A sale opened from here carries the way back, so the sale screen's "Back"
+   * returns to this customer rather than dumping the reader in the global sales
+   * list. `/sales/[id]` runs the value through `safeRedirect` before using it.
+   */
+  const back = encodeURIComponent(`/customers/${customer.id}/orders`);
+  const saleHref = (saleId: string) => `/sales/${saleId}?from=${back}`;
 
   return (
     <>
@@ -78,15 +86,24 @@ export default async function CustomerOrdersPage(
         <Card
           title="Order history"
           actions={
-            can(me, "add_customerpayment") && owes ? (
-              <RecordPayment
-                customerId={customer.id}
-                customerName={customer.name}
-                outstanding={outstanding.outstanding}
-                methods={methods}
-                today={todayInDhaka()}
-              />
-            ) : null
+            <>
+              {/* Offered only when there is something to export — a PDF of an
+                  empty table helps nobody. */}
+              {account.orders.length > 0 && (
+                <DownloadLink href={ordersPdfPath(customer.id)}>
+                  Download PDF
+                </DownloadLink>
+              )}
+              {can(me, "add_customerpayment") && owes && (
+                <RecordPayment
+                  customerId={customer.id}
+                  customerName={customer.name}
+                  outstanding={outstanding.outstanding}
+                  methods={methods}
+                  today={todayInDhaka()}
+                />
+              )}
+            </>
           }
           bodyClassName="p-0"
         >
@@ -108,26 +125,18 @@ export default async function CustomerOrdersPage(
                     <Th align="right">Paid</Th>
                     <Th align="right">Due</Th>
                     <Th>Status</Th>
+                    <Th align="right">Actions</Th>
                   </>
                 }
               >
-                {account.orders.map((order) => {
-                  const settled = isZero(order.balance_due);
-                  return (
-                    <Tr key={order.id}>
-                      <Td mono className="text-accent">{order.sale_number}</Td>
-                      <Td mono>{formatDate(order.finalized_at)}</Td>
-                      <Td align="right" mono>{formatMoney(order.total_amount)}</Td>
-                      <Td align="right" mono>{formatMoney(order.amount_paid)}</Td>
-                      <Td align="right" mono>{formatMoney(order.balance_due)}</Td>
-                      <Td>
-                        <StatusPill tone={settled ? "success" : "danger"}>
-                          {settled ? "Settled" : "Due"}
-                        </StatusPill>
-                      </Td>
-                    </Tr>
-                  );
-                })}
+                {account.orders.map((order) => (
+                  <OrderRow
+                    key={order.id}
+                    order={order}
+                    href={saleHref(order.id)}
+                    loadItems={loadSaleItems}
+                  />
+                ))}
               </Table>
             </div>
           )}
@@ -157,8 +166,14 @@ export default async function CustomerOrdersPage(
               >
                 {account.paymentEvents.map((event) => (
                   <Tr key={event.id}>
-                    <Td mono className="text-accent">{event.batch_ref}</Td>
-                    <Td mono>{formatDateTime(event.payment_date)}</Td>
+                    <Td mono>
+                      <PaymentReceipt
+                        customerId={customer.id}
+                        batchRef={event.batch_ref}
+                        loadBatch={loadPaymentBatch}
+                      />
+                    </Td>
+                    <Td mono>{formatDate(event.payment_date)}</Td>
                     <Td>{event.method_label}</Td>
                     <Td align="right" mono>{formatMoney(event.total_amount)}</Td>
                     <Td align="right" mono>{event.invoices_settled}</Td>
