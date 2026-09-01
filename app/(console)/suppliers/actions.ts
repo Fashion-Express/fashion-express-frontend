@@ -7,10 +7,15 @@ import { toActionState, type ActionState } from "@/lib/api/errors";
 import {
   createPurchase,
   createSupplier,
+  deletePurchase,
+  deletePurchasePayment,
   deleteSupplier,
   paySupplier,
   recordPurchasePayment,
+  updatePurchase,
+  updatePurchasePayment,
   updateSupplier,
+  type PurchasePaymentUpdate,
 } from "@/lib/api/suppliers";
 import { can, requireSession } from "@/lib/auth/session";
 import { fieldErrorsOf, required, text } from "@/lib/form";
@@ -168,6 +173,82 @@ export async function createPurchaseAction(
   redirect(`/suppliers/${supplierId}`);
 }
 
+/** The editable subset — no supplier, and no `paid_amount`. */
+const purchaseEditSchema = z.object({
+  productName: z.string().min(1, "Describe what was purchased."),
+  purchaseDate: z.string().min(1, "Choose the purchase date."),
+  notes: z.string().optional(),
+});
+
+/**
+ * FR-05.4 — correcting a purchase.
+ *
+ * Lowering the price below what has already been paid is refused by
+ * `purchase_not_overpaid`, and the API's sentence is passed through: the money
+ * has moved, so it is the price that is wrong, and the user has to decide which
+ * to change.
+ */
+export async function updatePurchaseAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireSession();
+  if (!can(me, "change_supplier")) {
+    return { formError: "You do not have permission to change a purchase." };
+  }
+
+  const price = parseMoneyInput(formData.get("price"));
+  if (!price || !isPositive(price)) {
+    return { fieldErrors: { price: "Enter the purchase price." } };
+  }
+
+  const parsed = purchaseEditSchema.safeParse({
+    productName: required(formData, "productName"),
+    purchaseDate: required(formData, "purchaseDate"),
+    notes: text(formData, "notes"),
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
+
+  const supplierId = required(formData, "supplierId");
+
+  try {
+    await updatePurchase(required(formData, "purchaseId"), {
+      productName: parsed.data.productName,
+      price,
+      purchaseDate: parsed.data.purchaseDate,
+      // An emptied box is a deliberate clearing, so "" is sent as "".
+      notes: parsed.data.notes ?? "",
+    });
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  redirect(`/suppliers/${supplierId}`);
+}
+
+/**
+ * Deleting a purchase takes its payments with it, and their ledger debits
+ * (BR-40) — nothing is left pointing at a purchase that no longer exists.
+ */
+export async function deletePurchaseAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireSession();
+  if (!can(me, "delete_supplier")) {
+    return { formError: "You do not have permission to delete a purchase." };
+  }
+
+  try {
+    await deletePurchase(required(formData, "purchaseId"));
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  refresh();
+  return { ok: true };
+}
+
 /* -------------------------------------------------------------------------
    Payments
    ------------------------------------------------------------------------- */
@@ -244,6 +325,86 @@ export async function paySupplierAction(
 
   try {
     await paySupplier(required(formData, "supplierId"), { amount, ...parsed.data });
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  refresh();
+  return { ok: true };
+}
+
+/* -------------------------------------------------------------------------
+   Editing and removing a receipt
+   ------------------------------------------------------------------------- */
+
+const paymentEditSchema = z.object({
+  paymentDate: z.string().min(1, "Choose a payment date."),
+  paymentMethodId: z.string().min(1, "Choose a payment method."),
+  referenceNumber: z.string().optional(),
+});
+
+/**
+ * FR-05.5 — correcting a receipt.
+ *
+ * The reference is sent even when empty: BR-29 is judged on what the row ends
+ * up with, so clearing it has to reach the API as a clearing rather than as
+ * "no change", or a bank payment could quietly lose its trace.
+ *
+ * Both this and the delete below are gated on `add_supplierpayment` — not a
+ * `change_`/`delete_` pair — because that is what the API's own routes require.
+ * Gating on anything else would draw buttons the server then refuses.
+ */
+export async function updatePurchasePaymentAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireSession();
+  if (!can(me, "add_supplierpayment")) {
+    return { formError: "You do not have permission to change a payment." };
+  }
+
+  const amount = parseMoneyInput(formData.get("amount"));
+  if (!amount || !isPositive(amount)) {
+    return { fieldErrors: { amount: "Enter an amount greater than zero." } };
+  }
+
+  const parsed = paymentEditSchema.safeParse({
+    paymentDate: required(formData, "paymentDate"),
+    paymentMethodId: required(formData, "paymentMethodId"),
+    referenceNumber: text(formData, "referenceNumber"),
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
+
+  const update: PurchasePaymentUpdate = {
+    amount,
+    paymentDate: parsed.data.paymentDate,
+    paymentMethodId: parsed.data.paymentMethodId,
+    referenceNumber: parsed.data.referenceNumber ?? "",
+    notes: text(formData, "notes") ?? "",
+  };
+
+  try {
+    await updatePurchasePayment(required(formData, "paymentId"), update);
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  refresh();
+  return { ok: true };
+}
+
+/** Deleting a receipt reverses its ledger debit (BR-40) and reopens the due. */
+export async function deletePurchasePaymentAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireSession();
+  if (!can(me, "add_supplierpayment")) {
+    return { formError: "You do not have permission to delete a payment." };
+  }
+
+  try {
+    await deletePurchasePayment(required(formData, "paymentId"));
   } catch (error) {
     return toActionState(error);
   }

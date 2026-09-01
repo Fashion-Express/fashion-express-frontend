@@ -1,7 +1,7 @@
 import "server-only";
 
 import { apiFetch } from "./client";
-import type { Id, Money, Paginated } from "./types";
+import type { Id, Money, NamedOption, Paginated } from "./types";
 
 /**
  * FR-00.6. Staff accounts.
@@ -51,6 +51,18 @@ export function listUsers(params: UserListParams = {}) {
       shopId: params.shopId,
     },
   });
+}
+
+/**
+ * The staff picker for the sales list's salesperson filter.
+ *
+ * Its own endpoint rather than page one of `listUsers`: that list pages at ten,
+ * so a filter built from it would silently fail to find the eleventh member of
+ * staff. Active staff only — someone who has left keeps their name on the sales
+ * they made, but is not offered as a person to filter by.
+ */
+export function listUserOptions() {
+  return apiFetch<NamedOption[]>("/users/options");
 }
 
 export function getUser(id: Id) {

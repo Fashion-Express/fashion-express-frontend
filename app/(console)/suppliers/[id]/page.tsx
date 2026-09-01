@@ -9,10 +9,11 @@ import { formatMoney, isPositive, isZero } from "@/lib/format/money";
 import { plural } from "@/lib/format/plural";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, DetailList, EmptyState, PageBody, PageHeader, StatTile, StatusPill } from "@/components/ui/surfaces";
-import { Table, Td, Th, Tr } from "@/components/ui/table";
+import { RowActions, RowLink, Table, Td, Th, Tr } from "@/components/ui/table";
 import { paySupplierAction, recordPurchasePaymentAction } from "../actions";
 import { PaymentDialog, type MethodOption } from "./payment-form";
 import { DeleteSupplier } from "./delete-supplier";
+import { DeletePurchase } from "./purchases/[purchaseId]/delete-purchase";
 
 export const metadata: Metadata = { title: "Supplier" };
 
@@ -152,22 +153,40 @@ export default async function SupplierDetailPage(props: PageProps<"/suppliers/[i
                         </StatusPill>
                       </Td>
                       <Td align="right">
-                        {mayPay && !settled ? (
-                          <PaymentDialog
-                            action={recordPurchasePaymentAction}
-                            trigger="Pay"
-                            title="Record purchase payment"
-                            targetLabel={purchase.product_name}
-                            outstanding={purchase.due}
-                            methods={methods}
-                            today={today}
-                            hiddenName="purchaseId"
-                            hiddenValue={purchase.id}
-                            allocationNote="Instalments are the norm. Each payment gets its own receipt number and cannot exceed the amount still due on this purchase."
-                          />
-                        ) : (
-                          <span className="text-[11.5px] text-faint">—</span>
-                        )}
+                        <RowActions>
+                          {mayPay && !settled && (
+                            <PaymentDialog
+                              action={recordPurchasePaymentAction}
+                              trigger="Pay"
+                              title="Record purchase payment"
+                              targetLabel={purchase.product_name}
+                              outstanding={purchase.due}
+                              methods={methods}
+                              today={today}
+                              hiddenName="purchaseId"
+                              hiddenValue={purchase.id}
+                              allocationNote="Instalments are the norm. Each payment gets its own receipt number and cannot exceed the amount still due on this purchase."
+                            />
+                          )}
+                          <RowLink href={`/suppliers/${supplier.id}/purchases/${purchase.id}`}>
+                            View
+                          </RowLink>
+                          {can(me, "change_supplier") && (
+                            <RowLink
+                              href={`/suppliers/${supplier.id}/purchases/${purchase.id}/edit`}
+                            >
+                              Edit
+                            </RowLink>
+                          )}
+                          {can(me, "delete_supplier") && (
+                            <DeletePurchase
+                              purchaseId={purchase.id}
+                              productName={purchase.product_name}
+                              price={purchase.price}
+                              paid={purchase.paid_amount}
+                            />
+                          )}
+                        </RowActions>
                       </Td>
                     </Tr>
                   );

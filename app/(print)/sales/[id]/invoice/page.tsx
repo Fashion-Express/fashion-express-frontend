@@ -13,7 +13,7 @@ import { listInventoryOptions } from "@/lib/api/inventory";
 import { getSale, type SaleDetail, type SaleItem } from "@/lib/api/sales";
 import { formatDate } from "@/lib/format/date";
 import { formatMoney, formatQuantity } from "@/lib/format/money";
-import { PrintButton } from "./print-button";
+import { PrintButton } from "../../../print-button";
 
 /**
  * FR-02.9 — the printable sale document, and the distinct QUOTATION template

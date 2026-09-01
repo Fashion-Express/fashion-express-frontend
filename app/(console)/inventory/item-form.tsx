@@ -6,7 +6,7 @@ import { Alert, FormCard } from "@/components/ui/surfaces";
 import { FormCancel, SubmitButton } from "@/components/forms/form";
 import type { ActionState } from "@/lib/api/errors";
 import type { InventoryItem } from "@/lib/api/inventory";
-import type { Option, ShopOption } from "@/lib/api/types";
+import type { NamedOption, ShopOption } from "@/lib/api/types";
 
 type Picker = { id: string; label: string };
 
@@ -26,7 +26,7 @@ export function ItemForm({
   shops: ShopOption[];
   units: Picker[];
   categories: Picker[];
-  suppliers: Option[];
+  suppliers: NamedOption[];
   defaultShopId?: string | null;
   cancelHref: string;
   submitLabel: string;
@@ -120,7 +120,7 @@ export function ItemForm({
               <Select {...props} defaultValue={item?.supplier_id ?? ""}>
                 <option value="">Not linked</option>
                 {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>{supplier.label}</option>
+                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
                 ))}
               </Select>
             )}

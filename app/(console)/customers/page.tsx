@@ -6,6 +6,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, PageBody, PageHeader, StatusPill } from "@/components/ui/surfaces";
 import { Pagination, RowActions, RowLink, Table, Td, Th, Tr } from "@/components/ui/table";
 import { CustomerFilters } from "./filters";
+import { DeleteCustomer } from "./[id]/delete-customer";
 
 export const metadata: Metadata = { title: "Customers" };
 
@@ -94,6 +95,19 @@ export default async function CustomersPage(props: PageProps<"/customers">) {
                         <>
                           <span className="text-faint">·</span>
                           <RowLink href={`/customers/${customer.id}/edit`}>Edit</RowLink>
+                        </>
+                      )}
+                      {can(me, "delete_customer") && (
+                        <>
+                          <span className="text-faint">·</span>
+                          {/* Shows what the delete would destroy before it is
+                              offered — deleting a customer cascades to every
+                              sale, payment and receipt they have. */}
+                          <DeleteCustomer
+                            customerId={customer.id}
+                            name={customer.name}
+                            variant="ghost"
+                          />
                         </>
                       )}
                     </RowActions>

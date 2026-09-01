@@ -22,9 +22,12 @@ import { loadDeletionImpact } from "./impact-action";
 export function DeleteCustomer({
   customerId,
   name,
+  variant = "danger",
 }: {
   customerId: string;
   name: string;
+  /** `ghost` for a table row, where a filled danger button shouts. */
+  variant?: "danger" | "ghost";
 }) {
   const [open, setOpen] = useState(false);
   const [impact, setImpact] = useState<DeletionImpact | null>(null);
@@ -52,7 +55,11 @@ export function DeleteCustomer({
 
   return (
     <>
-      <Button variant="danger" onClick={open_}>
+      <Button
+        variant={variant}
+        size={variant === "ghost" ? "sm" : "md"}
+        onClick={open_}
+      >
         Delete
       </Button>
 

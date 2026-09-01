@@ -32,8 +32,19 @@ export const PAGE_SIZE = 10;
 /** The shape of `/options` endpoints that feed a picker. */
 export type Option = { id: Id; label: string };
 
-/** Shops use `name` rather than `label` in theirs. */
-export type ShopOption = { id: Id; name: string };
+/**
+ * The OTHER option shape. `/shops/options` and `/suppliers/options` answer with
+ * `name`; `/customers/options` and the reference lists answer with `label`.
+ *
+ * Not normalised away, for the same reason the snake_case reads are not: the
+ * two shapes are real, and a transformer that hid the difference would render
+ * `undefined` the day an endpoint changed sides — which is exactly the bug this
+ * type was added to fix.
+ */
+export type NamedOption = { id: Id; name: string };
+
+/** @see NamedOption — kept as the name the shop pickers already use. */
+export type ShopOption = NamedOption;
 
 export function emptyPage<T>(): Paginated<T> {
   return { items: [], page: 1, pageSize: PAGE_SIZE, total: 0, totalPages: 0 };

@@ -92,9 +92,13 @@ export type SalePayment = {
   receipt_number: string;
   payment_date: string;
   amount: Money;
+  /** The id, so an edit form can preselect it; the code and label are display. */
+  payment_method_id: Id;
   method_code: string;
   method_label: string;
   notes: string | null;
+  /** When the receipt was written — what a printed receipt dates itself by. */
+  created_at: string;
   batch_id: Id | null;
 };
 
@@ -112,6 +116,16 @@ export type SaleDetail = SaleRow & {
 };
 
 /**
+ * The lines on their own. Separate from `getSale` because a screen that lists
+ * several sales wants one sale's lines without its header or its payments —
+ * the customer account's expandable order rows. Re-applies BR-01's scope, so a
+ * sale the caller may not see answers 404 here too.
+ */
+export function listSaleItems(id: Id) {
+  return apiFetch<SaleItem[]>(`/sales/${id}/items`);
+}
+
+/**
  * The lines and the payment history are their OWN routes rather than being
  * embedded in the sale — each one re-applies BR-01's scope, so a sale the
  * caller may not see cannot leak through a child collection either. They are
@@ -121,7 +135,7 @@ export async function getSale(id: Id): Promise<SaleDetail> {
   const sale = await apiFetch<SaleRow>(`/sales/${id}`);
 
   const [items, payments] = await Promise.all([
-    apiFetch<SaleItem[]>(`/sales/${id}/items`),
+    listSaleItems(id),
     apiFetch<SalePayment[]>(`/sales/${id}/payments`),
   ]);
 
@@ -235,6 +249,41 @@ export type SalePaymentInput = {
  * BR-09 total payments may not exceed the sale value · BR-10 nothing at or
  * below zero · BR-11 nothing on a cancelled sale or a quotation.
  */
+/**
+ * FR-02.7 — correcting a receipt: amount, date, method and notes.
+ *
+ * BR-09 holds on an edit as it does on insert — raising an amount past the sale
+ * total is refused. BR-62 holds on the method: only `customer`-scoped methods
+ * are accepted, which is why the picker is fed `customerPaymentMethods()` and
+ * never the full list.
+ *
+ * A repriced payment that came from a customer lump sum carries its allocation
+ * with it, so BR-19's combined receipt stays equal to the sum of the invoices
+ * it covers.
+ */
+export type SalePaymentUpdate = {
+  amount?: Money;
+  paymentDate?: string;
+  paymentMethodId?: Id;
+  notes?: string;
+};
+
+export function updateSalePayment(paymentId: Id, input: SalePaymentUpdate) {
+  return apiFetch<{ ok: true }>(`/sale-payments/${paymentId}`, {
+    method: "PATCH",
+    body: input,
+  });
+}
+
+/**
+ * Removing a receipt reverses its ledger entry. Where the payment came from a
+ * customer lump sum, its allocation goes too and the batch total is recomputed
+ * from what remains — a batch left covering nothing is deleted outright.
+ */
+export function deleteSalePayment(paymentId: Id) {
+  return apiFetch<void>(`/sale-payments/${paymentId}`, { method: "DELETE" });
+}
+
 export function recordSalePayment(id: Id, input: SalePaymentInput) {
   return apiFetch<SalePayment>(`/sales/${id}/payments`, {
     method: "POST",
@@ -279,4 +328,37 @@ export function deleteSaleItem(id: Id, itemId: Id) {
  */
 export function invoicePath(id: Id): string {
   return `/sales/${id}/invoice`;
+}
+
+/**
+ * FR-02.9 — the order history as a PDF, narrowed to one customer.
+ *
+ * Linked, never fetched: the bytes come from the API, which the browser cannot
+ * call itself, so the link goes through the download route handler that
+ * attaches the session cookie. BR-01 still scopes it upstream — an employee
+ * gets their own sales for that customer, not the customer's whole history.
+ */
+export function ordersPdfPath(customerId: Id): string {
+  return `/api/download/documents/orders.pdf?customerId=${encodeURIComponent(customerId)}`;
+}
+
+/**
+ * FR-02.9 — the printable receipt for one payment.
+ *
+ * A PAGE of this app, like the invoice and for the same reason: the document is
+ * handed to a customer, and the browser's print dialog — which this page opens
+ * itself — offers "Save as PDF" to anyone who wants the file.
+ * `GET /documents/payments/:id/receipt` still serves the bytes directly.
+ */
+export function receiptPath(saleId: Id, paymentId: Id): string {
+  return `/sales/${saleId}/payments/${paymentId}/receipt`;
+}
+
+/**
+ * The sale and its payment history as one document. This one IS the API's PDF —
+ * it streams, so it goes through the download route that attaches the session
+ * cookie rather than pointing at the API directly.
+ */
+export function statementPath(saleId: Id): string {
+  return `/api/download/documents/sales/${saleId}/statement`;
 }

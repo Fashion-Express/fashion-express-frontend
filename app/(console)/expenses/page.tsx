@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { listExpenses } from "@/lib/api/expenses";
 import { expenseCategories, optionLabel } from "@/lib/api/reference";
 import { firstParam, pageParam } from "@/lib/api/types";
-import { can, requireSession } from "@/lib/auth/session";
+import { can, isManager, requireSession } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format/date";
 import { formatMoney, isNegative } from "@/lib/format/money";
 import { plural } from "@/lib/format/plural";
@@ -10,6 +10,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { EmptyState, PageBody, PageHeader, StatTile, StatusPill } from "@/components/ui/surfaces";
 import { Pagination, RowActions, RowLink, Table, Td, Th, Tr } from "@/components/ui/table";
+import { DeleteExpense } from "./[id]/delete-expense";
 
 export const metadata: Metadata = { title: "Expenses" };
 
@@ -27,6 +28,15 @@ export default async function ExpensesPage(props: PageProps<"/expenses">) {
     listExpenses({ page, search, expenseCategoryId, from, to, shopId }),
     expenseCategories().catch(() => []),
   ]);
+
+  /*
+   * Editing or deleting an expense additionally requires MANAGER, not just the
+   * permission — recording a cost is day-to-day work, changing one after the
+   * fact moves a ledger entry. Gated the same way the actions themselves are,
+   * so the row never offers a button the server will refuse.
+   */
+  const mayEdit = can(me, "change_expense") && isManager(me);
+  const mayDelete = can(me, "delete_expense") && isManager(me);
 
   const filtered = Boolean(search || expenseCategoryId || from || to);
 
@@ -130,6 +140,16 @@ export default async function ExpensesPage(props: PageProps<"/expenses">) {
                   <Td align="right">
                     <RowActions>
                       <RowLink href={`/expenses/${expense.id}`}>View</RowLink>
+                      {mayEdit && (
+                        <RowLink href={`/expenses/${expense.id}/edit`}>Edit</RowLink>
+                      )}
+                      {mayDelete && (
+                        <DeleteExpense
+                          expenseId={expense.id}
+                          description={expense.description}
+                          variant="ghost"
+                        />
+                      )}
                     </RowActions>
                   </Td>
                 </Tr>

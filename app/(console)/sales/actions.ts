@@ -10,8 +10,12 @@ import {
   deleteSale,
   deleteSaleItem,
   finalizeSale,
+  addSaleItem,
+  deleteSalePayment,
   recordSalePayment,
+  updateSalePayment,
   type SaleItemInput,
+  type SalePaymentUpdate,
 } from "@/lib/api/sales";
 import { can, requireSession } from "@/lib/auth/session";
 import { fieldErrorsOf, required, text } from "@/lib/form";
@@ -255,6 +259,13 @@ const paymentSchema = z.object({
   notes: z.string().optional(),
 });
 
+/** The editable subset — everything but the receipt number itself. */
+const paymentEditSchema = z.object({
+  paymentDate: z.string().min(1, "Choose the payment date."),
+  paymentMethodId: z.string().min(1, "Choose a payment method."),
+  notes: z.string().optional(),
+});
+
 /**
  * BR-09 total payments may not exceed the sale value · BR-10 nothing at or
  * below zero · BR-11 nothing on a cancelled sale or a quotation · BR-62 the
@@ -283,6 +294,153 @@ export async function recordSalePaymentAction(
 
   try {
     await recordSalePayment(required(formData, "id"), { amount, ...parsed.data });
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * FR-02.7 — correcting a receipt. BR-62 constrains the method to a
+ * `customer`-scoped one, and the API re-checks it whatever the form offered.
+ *
+ * Fields absent from the form are left alone rather than blanked: the API
+ * treats every key as optional, so sending `undefined` is "no change" and
+ * sending `""` would wipe the notes.
+ */
+export async function updateSalePaymentAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireSession();
+  if (!can(me, "change_salepayment")) {
+    return { formError: "You do not have permission to change a payment." };
+  }
+
+  const amount = parseMoneyInput(formData.get("amount"));
+  if (!amount || !isPositive(amount)) {
+    return { fieldErrors: { amount: "Enter an amount greater than zero." } };
+  }
+
+  const parsed = paymentEditSchema.safeParse({
+    paymentDate: required(formData, "paymentDate"),
+    paymentMethodId: required(formData, "paymentMethodId"),
+    notes: text(formData, "notes"),
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
+
+  const update: SalePaymentUpdate = {
+    amount,
+    paymentDate: parsed.data.paymentDate,
+    paymentMethodId: parsed.data.paymentMethodId,
+    // An emptied box is a deliberate clearing, so "" is sent as "".
+    notes: parsed.data.notes ?? "",
+  };
+
+  try {
+    await updateSalePayment(required(formData, "paymentId"), update);
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * Deleting a receipt reverses its ledger entry. Where the payment came from a
+ * customer lump sum its allocation cascades away too, so BR-19's batch then
+ * accounts for one fewer invoice than it was recorded against.
+ */
+export async function deleteSalePaymentAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireSession();
+  if (!can(me, "delete_salepayment")) {
+    return { formError: "You do not have permission to delete a payment." };
+  }
+
+  try {
+    await deleteSalePayment(required(formData, "paymentId"));
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  refresh();
+  return { ok: true };
+}
+
+const addItemSchema = z.object({
+  itemType: z.enum(["inventory", "non_inventory"]),
+  inventoryItemId: z.string().optional(),
+  description: z.string().optional(),
+  quantity: z.string().min(1, "Enter a quantity."),
+  boxes: z.string().optional(),
+  unitPrice: z.string().optional(),
+});
+
+/**
+ * FR-02.6 — adding a line to an existing sale.
+ *
+ * BR-13: on a FINALISED sale the stock is validated and deducted immediately,
+ * exactly as it is at finalisation, so a line that would take stock negative is
+ * refused and nothing is written. On a draft or quotation nothing moves yet.
+ *
+ * BR-04 — the two line kinds are not interchangeable: a stocked line names a
+ * product, a machine line carries the description that IS the machine. Neither
+ * may be both, and the API refuses the combination regardless of this check.
+ */
+export async function addSaleItemAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireSession();
+  if (!can(me, "change_sale")) {
+    return { formError: "You do not have permission to change this sale." };
+  }
+
+  const parsed = addItemSchema.safeParse({
+    itemType: required(formData, "itemType"),
+    inventoryItemId: text(formData, "inventoryItemId"),
+    description: text(formData, "description"),
+    quantity: required(formData, "quantity"),
+    boxes: text(formData, "boxes"),
+    unitPrice: text(formData, "unitPrice"),
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
+
+  const line = parsed.data;
+  if (line.itemType === "inventory" && !line.inventoryItemId) {
+    return { fieldErrors: { inventoryItemId: "Choose a product." } };
+  }
+  if (line.itemType === "non_inventory" && !line.description) {
+    return { fieldErrors: { description: "Describe what is being sold." } };
+  }
+
+  const quantity = parseMoneyInput(line.quantity);
+  if (!quantity || !isPositive(quantity)) {
+    return { fieldErrors: { quantity: "Enter a quantity greater than zero." } };
+  }
+
+  // FR-02.2 — a blank or zero price on a stocked line means "use the product's
+  // current selling price", which only the server knows. Left out entirely.
+  const unitPrice = parseMoneyInput(line.unitPrice ?? null);
+
+  const input: SaleItemInput = {
+    itemType: line.itemType,
+    quantity,
+    ...(line.itemType === "inventory"
+      ? { inventoryItemId: line.inventoryItemId }
+      : { description: line.description }),
+    ...(line.boxes ? { boxes: Number(line.boxes) } : {}),
+    ...(unitPrice && isPositive(unitPrice) ? { unitPrice } : {}),
+  };
+
+  try {
+    await addSaleItem(required(formData, "id"), input);
   } catch (error) {
     return toActionState(error);
   }

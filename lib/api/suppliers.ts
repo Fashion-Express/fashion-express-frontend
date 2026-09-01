@@ -1,7 +1,7 @@
 import "server-only";
 
 import { apiFetch } from "./client";
-import type { Id, Money, Option, Paginated } from "./types";
+import type { Id, Money, NamedOption, Paginated } from "./types";
 
 /**
  * FR-05. NOT shop-scoped — buying is done centrally for the business (FR-11.4).
@@ -35,9 +35,13 @@ export function getSupplier(id: Id) {
   return apiFetch<Supplier>(`/suppliers/${id}`);
 }
 
-/** The picker for the inventory form's supplier reference. Needs no permission. */
+/**
+ * The picker for the inventory form's supplier reference. Needs no permission.
+ *
+ * Answers `{ id, name }`, NOT `{ id, label }` — see `NamedOption`.
+ */
 export function listSupplierOptions() {
-  return apiFetch<Option[]>("/suppliers/options");
+  return apiFetch<NamedOption[]>("/suppliers/options");
 }
 
 export type SupplierInput = {
@@ -80,6 +84,16 @@ export function listPurchases(supplierId: Id) {
   return apiFetch<Purchase[]>(`/suppliers/${supplierId}/purchases`);
 }
 
+/** One purchase, with the supplier it belongs to named. */
+export type PurchaseDetail = Purchase & {
+  supplier_id: Id;
+  supplier_name: string;
+};
+
+export function getPurchase(purchaseId: Id) {
+  return apiFetch<PurchaseDetail>(`/purchases/${purchaseId}`);
+}
+
 export type PurchaseInput = {
   productName: string;
   price: Money;
@@ -99,9 +113,59 @@ export function createPurchase(supplierId: Id, input: PurchaseInput) {
   });
 }
 
+/**
+ * FR-05.4 — correcting a purchase.
+ *
+ * The supplier is not here: a purchase belongs to the supplier it was entered
+ * against, and `UpdatePurchaseDto` does not accept a new one. Neither is
+ * `paid_amount` — that is the sum of the payment rows, derived and not
+ * writable.
+ *
+ * Lowering the price below what has already been paid is refused by
+ * `purchase_not_overpaid`, which is the right answer: the money has moved, so
+ * it is the price that is wrong.
+ */
+export type PurchaseUpdate = {
+  productName?: string;
+  price?: Money;
+  purchaseDate?: string;
+  notes?: string;
+};
+
+export function updatePurchase(purchaseId: Id, input: PurchaseUpdate) {
+  return apiFetch<PurchaseDetail>(`/purchases/${purchaseId}`, {
+    method: "PATCH",
+    body: input,
+  });
+}
+
+/**
+ * Deleting a purchase takes its payments with it, and their ledger lines
+ * (BR-40) — no debit survives the purchase it was recorded against.
+ */
+export function deletePurchase(purchaseId: Id) {
+  return apiFetch<void>(`/purchases/${purchaseId}`, { method: "DELETE" });
+}
+
 /* ---------------------------------------------------------------------------
    Payments
    --------------------------------------------------------------------------- */
+
+/** A receipt against one purchase. */
+export type PurchasePayment = {
+  id: Id;
+  receipt_number: string;
+  amount: Money;
+  payment_date: string;
+  method_code: string;
+  method_label: string;
+  reference_number: string | null;
+  notes: string | null;
+};
+
+export function listPurchasePayments(purchaseId: Id) {
+  return apiFetch<PurchasePayment[]>(`/purchases/${purchaseId}/payments`);
+}
 
 export type PurchasePaymentInput = {
   amount: Money;
@@ -133,6 +197,37 @@ export function recordPurchasePayment(purchaseId: Id, input: PurchasePaymentInpu
  * and receipt number, and posts its own ledger debit. It may not exceed the
  * supplier's total outstanding.
  */
+/**
+ * FR-05.5 — correcting a receipt against one purchase.
+ *
+ * BR-29 is judged on the values the row ends up with: switching cash to bank
+ * without adding a reference is refused, and so is clearing the reference on a
+ * payment that is already bank. BR-30 still caps the amount — raising it past
+ * the purchase price trips `purchase_not_overpaid`.
+ */
+export type PurchasePaymentUpdate = {
+  amount?: Money;
+  paymentDate?: string;
+  paymentMethodId?: Id;
+  referenceNumber?: string;
+  notes?: string;
+};
+
+export function updatePurchasePayment(
+  paymentId: Id,
+  input: PurchasePaymentUpdate,
+) {
+  return apiFetch<Purchase>(`/purchase-payments/${paymentId}`, {
+    method: "PATCH",
+    body: input,
+  });
+}
+
+/** Removing a receipt reverses its ledger debit (BR-40) and reopens the due. */
+export function deletePurchasePayment(paymentId: Id) {
+  return apiFetch<void>(`/purchase-payments/${paymentId}`, { method: "DELETE" });
+}
+
 export function paySupplier(supplierId: Id, input: PurchasePaymentInput) {
   return apiFetch<{ allocated: Array<{ purchaseId: Id; amount: Money }> }>(
     `/suppliers/${supplierId}/pay`,

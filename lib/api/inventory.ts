@@ -123,7 +123,20 @@ export function createInventoryItem(input: InventoryInput) {
 
 /** `shopId` is refused with a 400: BR-54 fixes a record's shop at creation, and
  * moving stock between shops is a transfer, explicitly out of scope. */
-export type InventoryUpdate = Omit<Partial<InventoryInput>, "shopId">;
+/**
+ * `null` clears an optional reference; `undefined` leaves it alone.
+ *
+ * Both category and supplier are optional on the record, so an edit has to be
+ * able to take one off again. Sending the field away as `undefined` reads as
+ * "no change", which is why an emptied picker has to become an explicit null.
+ */
+export type InventoryUpdate = Omit<
+  Partial<InventoryInput>,
+  "shopId" | "categoryId" | "supplierId"
+> & {
+  categoryId?: Id | null;
+  supplierId?: Id | null;
+};
 
 export function updateInventoryItem(id: Id, input: InventoryUpdate) {
   return apiFetch<InventoryItem>(`/inventory/${id}`, {

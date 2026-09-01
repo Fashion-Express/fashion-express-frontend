@@ -105,10 +105,20 @@ export function RowActions({ children }: { children: ReactNode }) {
   );
 }
 
-export function RowLink({ href, children }: { href: string; children: ReactNode }) {
+export function RowLink({
+  href,
+  children,
+  target,
+}: {
+  href: string;
+  children: ReactNode;
+  /** `_blank` for a document that is read alongside the row that opened it. */
+  target?: string;
+}) {
   return (
     <Link
       href={href}
+      target={target}
       className="rounded-sm text-accent no-underline hover:underline"
     >
       {children}

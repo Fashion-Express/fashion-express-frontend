@@ -68,7 +68,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             <StatTile label="Today's sales (finalized)" value={formatMoney(sales.finalized_today, { compact: true })} note={`${sales.finalized_count} finalized in total`} tone="success" />
             <StatTile label="Invoiced" value={formatMoney(sales.invoiced, { compact: true })} note="Finalized sales only" tone="accent" />
             <StatTile label="Sales balance due" value={formatMoney(sales.outstanding, { compact: true })} note="Outstanding across finalized sales" tone={isPositive(sales.outstanding) ? "danger" : "success"} />
-            <StatTile label="Drafts & quotations" value={`${sales.draft_count} / ${sales.quotation_count}`} note="Excluded from every money figure (BR-03)" tone="neutral" />
+            <StatTile label="Drafts & quotations" value={`${sales.draft_count} / ${sales.quotation_count}`} note="Excluded from every money figure" tone="neutral" />
           </div>
         </section>
 
