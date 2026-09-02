@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/errors";
 import { listInventoryOptions } from "@/lib/api/inventory";
 import { getSale, type SaleDetail, type SaleItem } from "@/lib/api/sales";
 import { formatDate } from "@/lib/format/date";
-import { formatMoney, formatQuantity } from "@/lib/format/money";
+import { formatMoney, formatQuantity, isZero } from "@/lib/format/money";
 import { PrintButton } from "../../../print-button";
 
 /**
@@ -78,6 +78,9 @@ export default async function SaleInvoicePage(
   ]);
 
   const isQuotation = sale.status_code === "quote";
+  // BR-11 — a quotation may hold an advance. When one has been taken the
+  // document has to account for it; when none has, it stays a clean offer.
+  const hasAdvance = !isZero(sale.amount_paid);
   const logo = logoSrc(business.logo);
 
   // FR-02.9 — a quotation is valid for 30 days from issue, and says so.
@@ -134,8 +137,11 @@ export default async function SaleInvoicePage(
             paid, or gets argued about. So a quotation says what it is. */}
         {isQuotation && (
           <p className="mt-6 rounded-badge bg-[#f7f1e4] px-3 py-2 text-[11.5px] font-semibold text-[#8a6402]">
-            This is a quotation, not an invoice. No payment is due against this
-            document. Valid for 30 days — until {formatDate(validUntil)}.
+            This is a quotation, not an invoice.{" "}
+            {hasAdvance
+              ? "The advance below is held against it; the rest falls due when it becomes an invoice."
+              : "No payment is due against this document."}{" "}
+            Valid for 30 days — until {formatDate(validUntil)}.
           </p>
         )}
 
@@ -248,17 +254,18 @@ export default async function SaleInvoicePage(
               />
             </div>
 
-            {/* BR-11 — nothing is owed against a quotation, so it shows no
-                payment and no balance at all rather than zeroes. */}
-            {!isQuotation && (
+            {/* BR-11 — an unpaid quotation shows no payment and no balance at
+                all rather than zeroes; one holding an advance must show both,
+                or the customer has no record of what they handed over. */}
+            {(!isQuotation || hasAdvance) && (
               <>
                 <Total
-                  label="Paid"
+                  label={isQuotation ? "Advance received" : "Paid"}
                   value={`(-) ${formatMoney(sale.amount_paid)}`}
                 />
                 <div className="print-fill mt-3 flex items-center justify-between gap-4 rounded-badge bg-[#1a1714] px-4 py-3 text-white">
                   <span className="text-[10.5px] font-semibold tracking-[0.12em] uppercase">
-                    Balance due
+                    {isQuotation ? "Balance" : "Balance due"}
                   </span>
                   <span className="font-mono text-[15px] font-semibold">
                     {formatMoney(sale.balance_due)}

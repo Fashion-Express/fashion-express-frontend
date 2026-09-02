@@ -332,41 +332,49 @@ export function SaleForm({
       </Card>
 
       {/*
-        BR-11 — nothing may be paid against a quotation, so the section is
-        absent rather than disabled: there is nothing owed against an offer.
+        BR-11 — only a CANCELLED sale refuses a payment, so a quotation gets
+        this section too: an advance against an offer is ordinary trade, and it
+        is what the legacy console allowed. The money rides along when the
+        quotation is converted to a draft invoice.
       */}
-      {!isQuotation && (
-        <FormCard title="Payment (optional)">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field name="initialPayment" label="Amount" error={state.fieldErrors?.initialPayment}>
-              {(props) => <NumericInput {...props} step="0.01" min="0" placeholder="0.00" />}
-            </Field>
+      <FormCard title={isQuotation ? "Advance payment (optional)" : "Payment (optional)"}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field name="initialPayment" label="Amount" error={state.fieldErrors?.initialPayment}>
+            {(props) => <NumericInput {...props} step="0.01" min="0" placeholder="0.00" />}
+          </Field>
 
-            <Field name="initialPaymentDate" label="Payment date">
-              {(props) => <DateInput {...props} defaultValue={today} />}
-            </Field>
+          <Field name="initialPaymentDate" label="Payment date">
+            {(props) => <DateInput {...props} defaultValue={today} />}
+          </Field>
 
-            <Field
-              name="initialPaymentMethodId"
-              label="Payment method"
-              error={state.fieldErrors?.initialPaymentMethodId}
-            >
-              {(props) => (
-                <Select {...props} defaultValue="">
-                  <option value="">Not paying now</option>
-                  {methods.map((method) => (
-                    <option key={method.id} value={method.id}>{method.label}</option>
-                  ))}
-                </Select>
-              )}
-            </Field>
+          <Field
+            name="initialPaymentMethodId"
+            label="Payment method"
+            error={state.fieldErrors?.initialPaymentMethodId}
+          >
+            {(props) => (
+              <Select {...props} defaultValue="">
+                <option value="">Not paying now</option>
+                {methods.map((method) => (
+                  <option key={method.id} value={method.id}>{method.label}</option>
+                ))}
+              </Select>
+            )}
+          </Field>
 
-            <Field name="initialPaymentNotes" label="Details (optional)">
-              {(props) => <Input {...props} placeholder="Payment details" />}
-            </Field>
-          </div>
-        </FormCard>
-      )}
+          <Field name="initialPaymentNotes" label="Details (optional)">
+            {(props) => <Input {...props} placeholder="Payment details" />}
+          </Field>
+        </div>
+
+        {isQuotation && (
+          <p className="text-[11.5px] leading-relaxed text-faint">
+            An advance may not exceed the quotation&rsquo;s value. It counts toward no
+            revenue figure until the sale is finalized, and is carried over when this
+            quotation becomes a draft invoice.
+          </p>
+        )}
+      </FormCard>
 
       <FormCard
         title="Notes"

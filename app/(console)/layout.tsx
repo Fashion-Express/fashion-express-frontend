@@ -3,7 +3,13 @@ import { ConsoleFrame } from "@/components/shell/console-frame";
 import { NAV, type NavGroup } from "@/components/shell/nav";
 import { getLowStockCount } from "@/lib/api/dashboard";
 import { listShopOptions } from "@/lib/api/shops";
-import { canAny, isManager, requireSession, signOut } from "@/lib/auth/session";
+import {
+  canAny,
+  isManager,
+  isSuperuser,
+  requireSession,
+  signOut,
+} from "@/lib/auth/session";
 import { formatLongDate } from "@/lib/format/date";
 import type { ShopOption } from "@/lib/api/types";
 
@@ -25,6 +31,7 @@ export default async function ConsoleLayout({ children }: LayoutProps<"/">) {
   const groups: NavGroup[] = NAV.map((group) => ({
     ...group,
     items: group.items.filter((item) => {
+      if (item.superuserOnly && !isSuperuser(me)) return false;
       if (item.managerOnly && !isManager(me)) return false;
       return item.permissions.length === 0 || canAny(me, item.permissions);
     }),

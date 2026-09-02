@@ -134,6 +134,13 @@ export type ActionState = {
    * Actions that redirect never need it.
    */
   ok?: true;
+  /**
+   * What the user submitted, echoed back so a refused form can repopulate
+   * itself — React resets an uncontrolled form once its action completes, and
+   * an error state is no exception. Built with `valuesOf` in `lib/form.ts`,
+   * which drops password fields. Actions that redirect never need it.
+   */
+  values?: Record<string, string>;
 };
 
 /** Turn any thrown value into something a form can render. */

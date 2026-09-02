@@ -7,6 +7,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { EmptyState, PageBody, PageHeader, StatTile } from "@/components/ui/surfaces";
 import { Pagination, RowActions, RowLink, Table, Td, Th, Tr } from "@/components/ui/table";
+import { DeleteSupplier } from "./[id]/delete-supplier";
 
 export const metadata: Metadata = { title: "Suppliers" };
 
@@ -114,6 +115,20 @@ export default async function SuppliersPage(props: PageProps<"/suppliers">) {
                         <>
                           <span className="text-faint">·</span>
                           <RowLink href={`/suppliers/${supplier.id}/edit`}>Edit</RowLink>
+                        </>
+                      )}
+                      {can(me, "delete_supplier") && (
+                        <>
+                          <span className="text-faint">·</span>
+                          {/* The dialog names what the delete cascades to, and
+                              `purchase_count` is already on the row — so the
+                              cost is stated without a second call. */}
+                          <DeleteSupplier
+                            supplierId={supplier.id}
+                            name={supplier.name}
+                            purchaseCount={supplier.purchase_count}
+                            variant="ghost"
+                          />
                         </>
                       )}
                     </RowActions>

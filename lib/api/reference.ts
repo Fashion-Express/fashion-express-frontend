@@ -80,6 +80,9 @@ export type ReferenceRow = {
   scope?: string;
   sort_order?: number;
   is_active: boolean;
+  /** `user-types` only — the privilege the type confers (FR-12.1.2). */
+  is_superuser?: boolean;
+  is_manager?: boolean;
 };
 
 export type ReferenceListParams = {
@@ -131,6 +134,13 @@ export type ReferenceInput = {
   scope?: string;
   sortOrder?: number;
   isActive?: boolean;
+  /**
+   * `user-types` only. **Writing either is restricted to administrators** — it
+   * decides what every holder of the type may do, and an unguarded path here
+   * let a manager mint an unrestricted role and step into it.
+   */
+  isSuperuser?: boolean;
+  isManager?: boolean;
 };
 
 export type ReferenceUpdate = Omit<ReferenceInput, "code" | "scope">;

@@ -18,9 +18,18 @@ import type { Permission } from "@/lib/auth/permissions";
  * hold: every non-superuser was denied links to pages they could open, and only
  * the Owner short-circuit hid it.
  *
- * Where the backend offers a `*_menu` permission, that is the one to use —
- * FR-00.2 mechanism 2 exists to gate navigation entries that have no record of
- * their own, which is exactly this list.
+ * **Every entry is gated on its own `*_menu` permission** (FR-00.2 mechanism
+ * 2), never on a record permission. Seven of them used to borrow one — Users
+ * from `view_user`, the administration screens from `manage_referencedata` —
+ * which made the sidebar a side effect of what someone could do rather than a
+ * thing that could be decided. Taking Departments out of a menu meant revoking
+ * reference data entirely, and removing Product categories and Job positions
+ * with it.
+ *
+ * A menu permission decides what is DRAWN and nothing else: every page keeps
+ * its own guard, so removing one hides a link without revoking access to the
+ * URL. `managerOnly` / `superuserOnly` sit alongside and are privilege levels
+ * (mechanism 3), not permissions — they are read from the user's type.
  */
 export type NavItem = {
   href: string;
@@ -29,6 +38,14 @@ export type NavItem = {
   permissions: Permission[];
   /** Additionally requires manager or superuser. */
   managerOnly?: boolean;
+  /**
+   * Additionally requires an UNRESTRICTED account. `permissions` cannot express
+   * this: `is_superuser` is a privilege level read from the user's type
+   * (BR-56), not a codename anyone can be granted — the same reason
+   * `managerOnly` sits beside it, and the reason the API guards this route with
+   * `@RequireSuperuser` rather than a permission.
+   */
+  superuserOnly?: boolean;
 };
 
 export type NavGroup = { label: string; items: NavItem[] };
@@ -56,11 +73,11 @@ export const NAV: NavGroup[] = [
       // No `view_billclaim` exists: a staff member sees their own claims with
       // `view_my_bills`, and anyone who may review them can obviously read
       // them too. The scope follows the caller, not the URL.
-      { href: "/bills", label: "My bills", permissions: ["view_my_bills", "review_bills"] },
+      { href: "/bills", label: "My bills", permissions: ["view_bills_menu"] },
       {
         href: "/bills/review",
         label: "Review bills",
-        permissions: ["review_bills"],
+        permissions: ["view_review_bills_menu"],
         managerOnly: true,
       },
     ],
@@ -74,18 +91,39 @@ export const NAV: NavGroup[] = [
       {
         href: "/reports",
         label: "Reports",
-        permissions: ["view_reports_menu", "view_ledger"],
+        permissions: ["view_reports_menu"],
         managerOnly: true,
       },
       // FR-00.6. The mockup omits staff accounts and names "Users & Roles" as
       // its own next step; the backend has had the module all along.
-      { href: "/users", label: "Users", permissions: ["view_user"], managerOnly: true },
+      { href: "/users", label: "Users", permissions: ["view_users_menu"], managerOnly: true },
       // FR-12 master data. Reads are ungated on the API, but the screen exists
       // to maintain the list, so the link is shown to whoever can write it.
       {
         href: "/settings/categories",
         label: "Product categories",
-        permissions: ["manage_referencedata"],
+        permissions: ["view_categories_menu"],
+      },
+      // FR-12.2 — the other two NAMED lists. Both are optional on a staff
+      // account, so they are maintained beside the categories rather than
+      // buried in the Users screen that consumes them.
+      {
+        href: "/settings/job-positions",
+        label: "Job positions",
+        permissions: ["view_job_positions_menu"],
+      },
+      {
+        href: "/settings/departments",
+        label: "Departments",
+        permissions: ["view_departments_menu"],
+      },
+      // FR-00.4 — what each role grants. Administrator-only: anyone who can
+      // edit grants can grant themselves anything.
+      {
+        href: "/settings/roles",
+        label: "Roles & permissions",
+        permissions: ["view_roles_menu"],
+        superuserOnly: true,
       },
       { href: "/settings/appearance", label: "Settings", permissions: [] },
     ],
@@ -110,5 +148,8 @@ export const IMPLEMENTED = new Set([
   "/reports",
   "/users",
   "/settings/categories",
+  "/settings/job-positions",
+  "/settings/departments",
+  "/settings/roles",
   "/settings/appearance",
 ]);
