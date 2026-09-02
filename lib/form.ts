@@ -31,6 +31,41 @@ export function fieldErrorsOf(error: ZodError): Record<string, string> {
 }
 
 /**
+ * Everything the user typed, to be handed back on `ActionState.values` so a
+ * refused form can repopulate itself.
+ *
+ * **Why this is needed at all.** React resets an uncontrolled form once its
+ * `action` completes — including when the action came back with errors. Without
+ * this, a rejected form loses every field the user filled in and they type the
+ * whole thing again to fix one mistake. Re-seeding each `defaultValue` from
+ * these values makes the reset land back on what was submitted.
+ *
+ * **Passwords are never echoed.** Any field named `password`, or ending in
+ * `Password`, is dropped: the value has already reached the server, and sending
+ * it back down puts it in the response payload and in client state for no
+ * benefit. A password field is the one input the user expects to retype, and it
+ * is usually the field they are being asked to correct anyway.
+ *
+ * File inputs are skipped too — a `File` is not a value a form can be re-seeded
+ * with, and the browser will not let one be set programmatically.
+ */
+export function valuesOf(
+  formData: FormData,
+  omit: readonly string[] = [],
+): Record<string, string> {
+  const values: Record<string, string> = {};
+
+  for (const [name, value] of formData.entries()) {
+    if (typeof value !== "string") continue;
+    if (name === "password" || name.endsWith("Password")) continue;
+    if (omit.includes(name)) continue;
+    values[name] = value;
+  }
+
+  return values;
+}
+
+/**
  * Where a redirect may go after signing in.
  *
  * Only a path on this origin: an absolute URL here would be an open redirect,

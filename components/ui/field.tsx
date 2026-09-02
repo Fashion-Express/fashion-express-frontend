@@ -125,6 +125,64 @@ export function Textarea({ className, rows = 3, ...props }: ComponentProps<"text
 }
 
 /**
+ * A checkbox with its label beside it, which `Field` cannot express — `Field`
+ * puts the label above the control, right for every other input and wrong for
+ * this one. So this is a sibling of `Field`, not a control passed into it.
+ *
+ * **It submits nothing.** An unchecked box is not sent at all, which is
+ * indistinguishable from a field the form never rendered — the reason every
+ * other boolean in this app is a `<Select>` of `"true"` / `"false"`. This is a
+ * controlled input whose state is carried into the form by the caller, as an
+ * always-present hidden field. Give it no `name`.
+ */
+export function CheckboxRow({
+  id,
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  id: string;
+  label: ReactNode;
+  hint?: ReactNode;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className={cn(
+        "flex cursor-pointer items-start gap-2.5 rounded-control px-2 py-1.5",
+        "transition-colors hover:bg-subtle",
+        disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
+      )}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+        className={cn(
+          "mt-[2px] size-[15px] shrink-0 cursor-pointer accent-[var(--accent)]",
+          "disabled:cursor-not-allowed",
+        )}
+      />
+      <span className="flex flex-col gap-0.5">
+        <span className="text-[12.5px] leading-snug text-ink">{label}</span>
+        {hint && (
+          <span className="font-mono text-[10.5px] leading-snug text-faint">
+            {hint}
+          </span>
+        )}
+      </span>
+    </label>
+  );
+}
+
+/**
  * A value that cannot be edited but must still be seen — a customer's issued
  * number, or the shop a record is locked to. Rendered as text rather than a
  * disabled input, because a disabled input invites a fight with it.

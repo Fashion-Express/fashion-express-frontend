@@ -67,16 +67,12 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
   const isCancelled = sale.status_code === "cancelled";
 
   /*
-   * BR-11 names exactly two statuses that cannot take a payment: a cancelled
-   * sale and a quotation. A DRAFT can — this screen used to require finalised,
-   * which was stricter than the API and left a draft with money against it no
-   * way to record it.
+   * BR-11 names exactly ONE status that cannot take a payment: a cancelled
+   * sale. A draft can, and so can a quotation — an advance against an offer is
+   * ordinary trade, and it rides along when the quotation is converted.
    */
   const mayPay =
-    can(me, "add_salepayment") &&
-    !isQuotation &&
-    !isCancelled &&
-    isPositive(sale.balance_due);
+    can(me, "add_salepayment") && !isCancelled && isPositive(sale.balance_due);
   // Also needed to EDIT a receipt's method, which stays available after the
   // balance reaches zero — so the list is fetched for either reason.
   const mayEditPayments = can(me, "change_salepayment") && sale.payments.length > 0;
@@ -137,9 +133,9 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
             leaving the reader to infer it from zeroes elsewhere. */}
         {isQuotation && (
           <Alert tone="info">
-            This is a quotation, not an invoice. No stock is reserved, nothing is owed
-            against it, and it counts toward no revenue figure. Convert it to a draft
-            invoice when the customer accepts.
+            This is a quotation, not an invoice. No stock is reserved and it counts
+            toward no revenue figure, though an advance may be taken against it.
+            Convert it to a draft invoice when the customer accepts.
           </Alert>
         )}
         {isDraft && (
@@ -262,103 +258,102 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
           </div>
         </Card>
 
-        {/* BR-11 — nothing is owed against a quotation, so it has no payment
-            section at all rather than an empty one. */}
-        {!isQuotation && (
-          <Card
-            title="Payments"
-            actions={
-              <>
-                {/* The sale and its payment history as one document. Offered
-                    only when there is a history to print. */}
-                {sale.payments.length > 0 && (
-                  <DownloadLink href={statementPath(sale.id)} size="sm">
-                    Download PDF
-                  </DownloadLink>
-                )}
-                {mayPay && (
-                  <RecordSalePayment
-                    saleId={sale.id}
-                    balanceDue={sale.balance_due}
-                    methods={methodOptions}
-                    today={todayInDhaka()}
-                  />
-                )}
-              </>
-            }
-            bodyClassName="p-0"
-          >
-            {sale.payments.length === 0 ? (
-              <div className="p-5">
-                <EmptyState
-                  title="No payments recorded"
-                  description={
-                    isFinalized
-                      ? "Each payment gets its own receipt number and posts a credit to the ledger."
-                      : "Each payment gets its own receipt number. Nothing counts toward revenue until the sale is finalized."
-                  }
+        {/* BR-11 — a quotation may hold an advance, so it gets the same
+            payment section as any other sale. Only a cancelled sale has
+            nothing that can be paid against it. */}
+        <Card
+          title="Payments"
+          actions={
+            <>
+              {/* The sale and its payment history as one document. Offered
+                  only when there is a history to print. */}
+              {sale.payments.length > 0 && (
+                <DownloadLink href={statementPath(sale.id)} size="sm">
+                  Download PDF
+                </DownloadLink>
+              )}
+              {mayPay && (
+                <RecordSalePayment
+                  saleId={sale.id}
+                  balanceDue={sale.balance_due}
+                  methods={methodOptions}
+                  today={todayInDhaka()}
                 />
-              </div>
-            ) : (
-              <div className="px-5 pb-3">
-                <Table
-                  head={
-                    <>
-                      <Th>Receipt</Th>
-                      <Th>Date</Th>
-                      <Th>Method</Th>
-                      <Th>Details</Th>
-                      <Th align="right">Amount</Th>
-                      <Th align="right">Actions</Th>
-                    </>
-                  }
-                >
-                  {sale.payments.map((payment) => (
-                    <Tr key={payment.id}>
-                      <Td mono>{payment.receipt_number}</Td>
-                      <Td mono>{formatDate(payment.payment_date)}</Td>
-                      <Td>{payment.method_label}</Td>
-                      <Td className="max-w-[220px] truncate">{payment.notes || "—"}</Td>
-                      <Td align="right" mono>{formatMoney(payment.amount)}</Td>
-                      <Td align="right">
-                        <RowActions>
-                          {/* Its own tab, as the old console had it: the
-                              receipt is read and printed while this screen
-                              stays where it was. */}
-                          <RowLink
-                            href={receiptPath(sale.id, payment.id)}
-                            target="_blank"
-                          >
-                            Receipt
-                          </RowLink>
-                          {can(me, "change_salepayment") && (
-                            <EditSalePayment
-                              paymentId={payment.id}
-                              receiptNumber={payment.receipt_number}
-                              amount={payment.amount}
-                              paymentDate={payment.payment_date}
-                              methodId={payment.payment_method_id}
-                              methods={methodOptions}
-                              notes={payment.notes}
-                            />
-                          )}
-                          {can(me, "delete_salepayment") && (
-                            <DeleteSalePayment
-                              paymentId={payment.id}
-                              receiptNumber={payment.receipt_number}
-                              amount={payment.amount}
-                              fromBatch={payment.batch_id !== null}
-                            />
-                          )}
-                        </RowActions>
-                      </Td>
-                    </Tr>
-                  ))}
-                </Table>
-              </div>
-            )}
-          </Card>
-        )}
+              )}
+            </>
+          }
+          bodyClassName="p-0"
+        >
+          {sale.payments.length === 0 ? (
+            <div className="p-5">
+              <EmptyState
+                title="No payments recorded"
+                description={
+                  isFinalized
+                    ? "Each payment gets its own receipt number and posts a credit to the ledger."
+                    : "Each payment gets its own receipt number. Nothing counts toward revenue until the sale is finalized."
+                }
+              />
+            </div>
+          ) : (
+            <div className="px-5 pb-3">
+              <Table
+                head={
+                  <>
+                    <Th>Receipt</Th>
+                    <Th>Date</Th>
+                    <Th>Method</Th>
+                    <Th>Details</Th>
+                    <Th align="right">Amount</Th>
+                    <Th align="right">Actions</Th>
+                  </>
+                }
+              >
+                {sale.payments.map((payment) => (
+                  <Tr key={payment.id}>
+                    <Td mono>{payment.receipt_number}</Td>
+                    <Td mono>{formatDate(payment.payment_date)}</Td>
+                    <Td>{payment.method_label}</Td>
+                    <Td className="max-w-[220px] truncate">{payment.notes || "—"}</Td>
+                    <Td align="right" mono>{formatMoney(payment.amount)}</Td>
+                    <Td align="right">
+                      <RowActions>
+                        {/* Its own tab, as the old console had it: the
+                            receipt is read and printed while this screen
+                            stays where it was. */}
+                        <RowLink
+                          href={receiptPath(sale.id, payment.id)}
+                          target="_blank"
+                        >
+                          Receipt
+                        </RowLink>
+                        {can(me, "change_salepayment") && (
+                          <EditSalePayment
+                            paymentId={payment.id}
+                            receiptNumber={payment.receipt_number}
+                            amount={payment.amount}
+                            paymentDate={payment.payment_date}
+                            methodId={payment.payment_method_id}
+                            methods={methodOptions}
+                            notes={payment.notes}
+                          />
+                        )}
+                        {can(me, "delete_salepayment") && (
+                          <DeleteSalePayment
+                            paymentId={payment.id}
+                            receiptNumber={payment.receipt_number}
+                            amount={payment.amount}
+                            fromBatch={payment.batch_id !== null}
+                          />
+                        )}
+                      </RowActions>
+                    </Td>
+                  </Tr>
+                ))}
+              </Table>
+            </div>
+          )}
+        </Card>
       </PageBody>
     </>
   );

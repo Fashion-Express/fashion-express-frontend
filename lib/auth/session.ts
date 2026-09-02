@@ -89,6 +89,19 @@ export function isManager(me: Me | null): boolean {
   return Boolean(me && (me.userType.isSuperuser || me.userType.isManager));
 }
 
+/**
+ * BR-41 — unrestricted access, the privilege the API's `@RequireSuperuser`
+ * checks. A *level*, not a capability: it cannot be expressed as a permission
+ * because no one can be granted it, which is why editing what a role grants is
+ * gated on this rather than on a codename — anyone who could edit grants via a
+ * permission could grant themselves that permission.
+ *
+ * Presentation only, like `can`. The server re-checks every time.
+ */
+export function isSuperuser(me: Me | null): boolean {
+  return Boolean(me?.userType.isSuperuser);
+}
+
 /* -------------------------------------------------------------------------
    Sign in / sign out
    ------------------------------------------------------------------------- */

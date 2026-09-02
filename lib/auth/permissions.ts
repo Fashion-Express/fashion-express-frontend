@@ -68,15 +68,31 @@ export const PERMISSIONS = [
   /**
    * FR-00.2 mechanism 2 — permissions that gate a NAVIGATION entry rather than
    * a record. They exist precisely so the sidebar has something to check that
-   * is not a record permission, and they are what `nav.ts` should use.
+   * is not a record permission, and they are what `nav.ts` uses.
+   *
+   * **One per entry.** Seven of these were added later because their entries
+   * had been riding on a record permission instead — Users on `view_user`, the
+   * four administration screens on `manage_referencedata` — which meant the
+   * only way to take Departments out of someone's sidebar was to stop them
+   * managing reference data at all, removing two other entries with it.
+   *
+   * A menu permission is not an access gate. Every page keeps its own guard, so
+   * removing one hides a link and revokes nothing.
    */
+  "view_bills_menu",
+  "view_categories_menu",
   "view_customers_menu",
+  "view_departments_menu",
   "view_expenses_menu",
   "view_inventory_menu",
+  "view_job_positions_menu",
   "view_reports_menu",
+  "view_review_bills_menu",
+  "view_roles_menu",
   "view_sales_menu",
   "view_shops_menu",
   "view_suppliers_menu",
+  "view_users_menu",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

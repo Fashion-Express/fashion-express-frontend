@@ -6,7 +6,7 @@ import { z } from "zod";
 import { toActionState, type ActionState } from "@/lib/api/errors";
 import { createUser, setUserPassword, updateUser } from "@/lib/api/users";
 import { can, requireSession } from "@/lib/auth/session";
-import { fieldErrorsOf, required, text } from "@/lib/form";
+import { fieldErrorsOf, required, text, valuesOf } from "@/lib/form";
 import { parseMoneyInput } from "@/lib/format/money";
 
 /**
@@ -64,9 +64,20 @@ export async function createUserAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  /*
+   * Every path that comes BACK to the form carries `values`. React resets an
+   * uncontrolled form once its action completes, errors included, so a refusal
+   * without them empties a screen the user has just filled in — a dozen fields
+   * retyped to fix one. The password is not among them, by design.
+   */
+  const values = valuesOf(formData);
+
   const me = await requireSession();
   if (!can(me, "add_user")) {
-    return { formError: "You do not have permission to add a staff account." };
+    return {
+      formError: "You do not have permission to add a staff account.",
+      values,
+    };
   }
 
   const parsed = createSchema.safeParse({
@@ -74,7 +85,9 @@ export async function createUserAction(
     username: required(formData, "username"),
     password: required(formData, "password"),
   });
-  if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
+  if (!parsed.success) {
+    return { fieldErrors: fieldErrorsOf(parsed.error), values };
+  }
 
   // Salary is a decimal STRING end to end — a JSON number would be a float.
   const salary = parseMoneyInput(formData.get("salary"));
@@ -86,7 +99,9 @@ export async function createUserAction(
     const user = await createUser({ ...parsed.data, salary: salary ?? undefined });
     id = user.id;
   } catch (error) {
-    return toActionState(error);
+    // A duplicate username lands here, and it is the case where keeping the
+    // rest of the form matters most.
+    return { ...toActionState(error), values };
   }
 
   redirect(`/users/${id}`);
@@ -96,21 +111,28 @@ export async function updateUserAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const values = valuesOf(formData);
+
   const me = await requireSession();
   if (!can(me, "change_user")) {
-    return { formError: "You do not have permission to edit a staff account." };
+    return {
+      formError: "You do not have permission to edit a staff account.",
+      values,
+    };
   }
 
   const id = required(formData, "id");
   const parsed = updateSchema.safeParse(readForm(formData));
-  if (!parsed.success) return { fieldErrors: fieldErrorsOf(parsed.error) };
+  if (!parsed.success) {
+    return { fieldErrors: fieldErrorsOf(parsed.error), values };
+  }
 
   const salary = parseMoneyInput(formData.get("salary"));
 
   try {
     await updateUser(id, { ...parsed.data, salary: salary ?? undefined });
   } catch (error) {
-    return toActionState(error);
+    return { ...toActionState(error), values };
   }
 
   redirect(`/users/${id}`);

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { apiFetch } from "./client";
+import type { SaleStatus } from "./sales";
 import type { Id, Money, Quantity } from "./types";
 
 /**
@@ -56,8 +57,29 @@ export type FullDashboard = {
     value_sold: Money;
   }>;
   lowStock: Array<Record<string, unknown>>;
-  recentSales: Array<Record<string, unknown>>;
-  recentExpenses: Array<Record<string, unknown>>;
+  /**
+   * FR-01.3 — the five most recent sales, newest first.
+   *
+   * BR-01 scoped: an employee's five are their own. Drafts and quotations
+   * appear — this is a record of activity, not a money figure.
+   */
+  recentSales: Array<{
+    id: Id;
+    sale_number: string;
+    status_code: SaleStatus;
+    status_label: string;
+    total_amount: Money;
+    customer_name: string;
+    created_at: string;
+  }>;
+  /** FR-11.4 — expenses are not shop-scoped, so these five ignore the filter. */
+  recentExpenses: Array<{
+    id: Id;
+    date: string;
+    description: string;
+    amount: Money;
+    category_label: string;
+  }>;
 };
 
 export type Dashboard = ReducedDashboard | FullDashboard;

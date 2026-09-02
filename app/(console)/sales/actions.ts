@@ -144,12 +144,9 @@ async function submitSale(
   if (paying && !methodId) {
     return { fieldErrors: { initialPaymentMethodId: "Choose how this payment was made." } };
   }
-  // BR-11 — no payment may be taken against a quotation. There is nothing owed
-  // against an offer.
-  if (paying && asQuotation) {
-    return { formError: "A quotation cannot take a payment — there is nothing owed against an offer." };
-  }
 
+  // BR-11 — only a CANCELLED sale refuses a payment. A quotation may take an
+  // advance as it is raised, exactly as a draft may.
   let id: string;
   try {
     const sale = await createSale({
