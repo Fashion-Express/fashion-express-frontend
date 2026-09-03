@@ -18,7 +18,7 @@ export function LoginForm({ next }: { next?: string }) {
         <h1 className="font-sans text-[27px] leading-tight font-semibold tracking-[-0.022em] text-ink">
           Welcome back
         </h1>
-        <p className="text-[13.5px] text-muted">Sign in to continue to OrgMS.</p>
+        <p className="text-[13.5px] text-muted">Sign in to continue to Fashion Express.</p>
       </div>
 
       {state.formError && <Alert tone="danger">{state.formError}</Alert>}

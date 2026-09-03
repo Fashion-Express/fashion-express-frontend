@@ -50,10 +50,10 @@ export function Sidebar({
         className="flex items-center gap-2.5 px-2 no-underline"
       >
         <span className="flex size-[26px] items-center justify-center rounded-[8px] bg-accent font-sans text-xs font-bold text-accent-ink">
-          O
+          F
         </span>
         <span className="font-sans text-[13px] font-semibold tracking-[-0.01em] text-shell-ink">
-          OrgMS
+          Fashion Express
         </span>
       </Link>
 

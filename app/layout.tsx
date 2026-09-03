@@ -23,8 +23,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "OrgMS — Fashion Express",
-    template: "%s · OrgMS",
+    default: "Fashion Express",
+    template: "%s · Fashion Express",
   },
   description:
     "Customers, inventory, suppliers and sales — run from one place.",

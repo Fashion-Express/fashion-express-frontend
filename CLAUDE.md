@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The OrgMS console for Fashion Express: a Next.js 16 App Router front end for the
+The Fashion Express console: a Next.js 16 App Router front end for the
 **NestJS + PostgreSQL API in `../fashion-express-backend`**. This repo holds no
 business logic. Every rule about money, stock and permissions lives in that
 backend — most of it in database constraints — and this app's job is to present
@@ -175,8 +175,8 @@ short-circuits every check, matching the backend. Two consequences:
 
 ## Design system
 
-Tokens in `app/globals.css` come from `OrgMS UI Mockups.html` (an untracked
-bundled design canvas at the repo root). Colours are CSS variables so the
+Tokens in `app/globals.css` come from `Fashion Express UI Mockups.html` (an
+untracked bundled design canvas at the repo root). Colours are CSS variables so the
 runtime accent and light/dark controls repaint without a rebuild; the palette is
 defined on bare `:root`, then again under `prefers-color-scheme` and
 `[data-theme]` so an explicit choice wins in both directions.

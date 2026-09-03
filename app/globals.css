@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   OrgMS design tokens — taken from "OrgMS UI Mockups.html".
+   Fashion Express design tokens — taken from "Fashion Express UI Mockups.html".
 
    Every colour is a CSS variable so the runtime theme controls (accent swatch +
    light/dark/system) can repaint the console without a rebuild. Two knobs are

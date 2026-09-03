@@ -43,5 +43,6 @@ next-env.d.ts
 
 .idea
 # Design source: the bundled mockup canvas the UI was built from.
-# Kept out of history — it is a ~600KB single-file bundle.
-OrgMS UI Mockups.html
+# Kept out of history — it is a ~600KB single-file bundle. Globbed so a
+# re-export cannot slip in under a different product name.
+*UI Mockups.html

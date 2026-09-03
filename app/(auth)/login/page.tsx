@@ -17,9 +17,9 @@ export default async function LoginPage(props: PageProps<"/login">) {
       <aside className="hidden w-[46%] max-w-[620px] flex-col justify-between bg-shell p-11 md:flex">
         <div className="flex items-center gap-2.5">
           <span className="flex size-7 items-center justify-center rounded-[9px] bg-accent font-sans text-[13px] font-bold text-accent-ink">
-            O
+            F
           </span>
-          <span className="font-sans text-sm font-semibold text-shell-ink">OrgMS</span>
+          <span className="font-sans text-sm font-semibold text-shell-ink">Fashion Express</span>
         </div>
 
         <div className="flex flex-col gap-6">
