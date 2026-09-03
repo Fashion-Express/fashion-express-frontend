@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Field, Input } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Alert } from "@/components/ui/surfaces";
 import { SubmitButton } from "@/components/forms/form";
 import type { ActionState } from "@/lib/api/errors";
@@ -40,9 +41,8 @@ export function LoginForm({ next }: { next?: string }) {
 
         <Field name="password" label="Password" error={state.fieldErrors?.password}>
           {(props) => (
-            <Input
+            <PasswordInput
               {...props}
-              type="password"
               autoComplete="current-password"
               className="h-tall rounded-field font-mono tracking-[0.2em]"
               placeholder="••••••••••••"
