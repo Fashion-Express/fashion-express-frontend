@@ -14,7 +14,20 @@ import { toApiError } from "./errors";
  * server-to-server requests.
  */
 
+/** The cookie THIS app sets on its own origin. One name, every environment. */
 export const SESSION_COOKIE = "better-auth.session_token";
+
+/**
+ * The name the API answers to, which is NOT always the one above.
+ *
+ * better-auth renames its own cookie to `__Secure-better-auth.session_token`
+ * whenever it issues secure cookies — NFR-07 turns that on in production via
+ * `useSecureCookies` — and `/auth/get-session` reads that exact name with no
+ * fallback to the bare one. So the name depends on the API's environment, not
+ * on ours, and the two constants have to stay separate: a local http backend
+ * wants the bare name, a deployed https one wants the prefix.
+ */
+export const SECURE_SESSION_COOKIE = `__Secure-${SESSION_COOKIE}`;
 
 function baseUrl(): string {
   const url = process.env.API_BASE_URL;
@@ -29,6 +42,16 @@ function baseUrl(): string {
 /** Deliberately not NEXT_PUBLIC_: the browser never calls the API directly. */
 function appOrigin(): string {
   return process.env.APP_ORIGIN ?? "http://localhost:5173";
+}
+
+/**
+ * Mirrors better-auth's own rule for the prefix: it is on when the auth server
+ * issues secure cookies, which tracks the deployment being https. Derived from
+ * the API's URL rather than configured, so there is no third env var to keep in
+ * step with the backend's NODE_ENV.
+ */
+function upstreamSessionCookie(): string {
+  return baseUrl().startsWith("https://") ? SECURE_SESSION_COOKIE : SESSION_COOKIE;
 }
 
 export type Query = Record<
@@ -85,7 +108,7 @@ export async function apiFetch<T>(
 
   if (!anonymous) {
     const token = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (token) headers.set("Cookie", `${SESSION_COOKIE}=${token}`);
+    if (token) headers.set("Cookie", `${upstreamSessionCookie()}=${token}`);
   }
 
   /**

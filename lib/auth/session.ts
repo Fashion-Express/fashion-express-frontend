@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { apiFetch, SESSION_COOKIE } from "@/lib/api/client";
+import { apiFetch, SECURE_SESSION_COOKIE, SESSION_COOKIE } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import type { Id } from "@/lib/api/types";
 import type { Permission } from "./permissions";
@@ -145,9 +145,19 @@ export async function signIn(username: string, password: string): Promise<void> 
     });
   }
 
+  /*
+   * Either name: a production API issues secure cookies and calls this
+   * `__Secure-better-auth.session_token`, a local one calls it
+   * `better-auth.session_token`. Matching only the bare name made a perfectly
+   * good 200 from a deployed API look like it had returned no cookie at all.
+   */
   const setCookie = response.headers
     .getSetCookie()
-    .find((value) => value.startsWith(`${SESSION_COOKIE}=`));
+    .find(
+      (value) =>
+        value.startsWith(`${SESSION_COOKIE}=`) ||
+        value.startsWith(`${SECURE_SESSION_COOKIE}=`),
+    );
 
   if (!setCookie) {
     throw new ApiError({
@@ -157,7 +167,8 @@ export async function signIn(username: string, password: string): Promise<void> 
     });
   }
 
-  const token = setCookie.slice(`${SESSION_COOKIE}=`.length).split(";")[0];
+  // Past the name, whichever of the two it was.
+  const token = setCookie.slice(setCookie.indexOf("=") + 1).split(";")[0];
   const maxAge = Number(/Max-Age=(\d+)/i.exec(setCookie)?.[1] ?? 60 * 60 * 24 * 7);
 
   (await cookies()).set(SESSION_COOKIE, decodeURIComponent(token), {
