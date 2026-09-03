@@ -14,9 +14,10 @@ import {
 } from "@/components/ui/field";
 import { SubmitButton } from "@/components/forms/form";
 import type { ActionState } from "@/lib/api/errors";
-import { formatMoney } from "@/lib/format/money";
+import { formatMoney, isZero, subtract } from "@/lib/format/money";
 import {
   addSaleItemAction,
+  applySaleDiscountAction,
   convertQuotationAction,
   deleteSaleAction,
   deleteSalePaymentAction,
@@ -177,6 +178,124 @@ export function RecordSalePayment({
           <div className="flex justify-end gap-2.5">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <SubmitButton pendingLabel="Saving…">Save payment</SubmitButton>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
+}
+
+/**
+ * BR-67..BR-69 — the sale's one discount.
+ *
+ * A discount is not a payment, so this is deliberately not shaped like the
+ * payment dialog: there is no date and no method, because no money changed
+ * hands. It replaces a value on the sale rather than adding a record to it,
+ * which is why re-opening it shows the current discount rather than an empty
+ * box, and why clearing it is entering 0 rather than a separate Remove button.
+ *
+ * The ceiling shown is the most that can be given away right now — the line
+ * subtotal less whatever has already been paid (BR-68). It is displayed rather
+ * than enforced here: payments may have been taken since this page rendered, so
+ * the server's refusal is the one that counts, and its message names the real
+ * maximum.
+ */
+export function ApplySaleDiscount({
+  saleId,
+  subtotal,
+  discount,
+  amountPaid,
+}: {
+  saleId: string;
+  subtotal: string;
+  discount: string;
+  amountPaid: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, formAction] = useActionState<ActionState, FormData>(
+    applySaleDiscountAction,
+    {},
+  );
+
+  const [seen, setSeen] = useState(state);
+  if (seen !== state) {
+    setSeen(state);
+    if (state.ok) setOpen(false);
+  }
+
+  const ceiling = subtract(subtotal, amountPaid);
+  const existing = !isZero(discount);
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        {existing ? "Edit discount" : "Apply discount"}
+      </Button>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={existing ? "Edit discount" : "Apply a discount"}
+        width="md"
+      >
+        <form action={formAction} className="flex flex-col gap-4">
+          <input type="hidden" name="id" value={saleId} />
+
+          {state.formError && <Alert tone="danger">{state.formError}</Alert>}
+
+          <div className="flex flex-col gap-1.5 rounded-control bg-subtle px-3.5 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-muted">Sale subtotal</span>
+              <span className="font-mono text-[12px] text-ink">
+                {formatMoney(subtotal)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] text-muted">Already paid</span>
+              <span className="font-mono text-[12px] text-ink">
+                {formatMoney(amountPaid)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-line pt-1.5">
+              <span className="text-[12px] text-muted">Most you can discount</span>
+              <span className="font-mono text-[12px] font-semibold text-accent">
+                {formatMoney(ceiling)}
+              </span>
+            </div>
+          </div>
+
+          <Field
+            name="amount"
+            label="Discount amount"
+            required
+            error={state.fieldErrors?.amount}
+            hint="Enter 0 to remove the discount."
+          >
+            {(props) => (
+              <NumericInput
+                {...props}
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                defaultValue={existing ? discount : ""}
+                autoFocus
+              />
+            )}
+          </Field>
+
+          <Field name="reason" label="Reason (optional)" error={state.fieldErrors?.reason}>
+            {(props) => <Input {...props} placeholder="Why this was given" />}
+          </Field>
+
+          <p className="text-[11.5px] leading-relaxed text-faint">
+            A discount reduces what the customer owes. It is not a payment: it
+            records no receipt and posts nothing to the ledger. Once the sale is
+            fully paid it can no longer be changed.
+          </p>
+
+          <div className="flex justify-end gap-2.5">
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <SubmitButton pendingLabel="Saving…">Save discount</SubmitButton>
           </div>
         </form>
       </Modal>

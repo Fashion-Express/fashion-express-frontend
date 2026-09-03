@@ -12,6 +12,7 @@ import {
   finalizeSale,
   addSaleItem,
   deleteSalePayment,
+  applySaleDiscount,
   recordSalePayment,
   updateSalePayment,
   type SaleItemInput,
@@ -268,6 +269,47 @@ const paymentEditSchema = z.object({
  * below zero · BR-11 nothing on a cancelled sale or a quotation · BR-62 the
  * method must be customer-scoped.
  */
+/**
+ * BR-67..BR-69 — apply, change or clear the sale's discount.
+ *
+ * Gated on `change_sale`, the same permission as editing the sale's other
+ * details: whoever may edit the sale may price it. The check is repeated here
+ * because **a Server Action is reachable by direct POST** — the hidden button on
+ * the page proves nothing about the caller.
+ *
+ * Every refusal is the API's. The ceiling depends on payments taken since this
+ * page was rendered, so deciding it here would be deciding it from stale data;
+ * the server's sentence already names the maximum.
+ */
+export async function applySaleDiscountAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireSession();
+  if (!can(me, "change_sale")) {
+    return { formError: "You do not have permission to change this sale." };
+  }
+
+  // "0" is a legitimate value here — it clears the discount — so this cannot
+  // reuse the `isPositive` guard the payment action uses.
+  const amount = parseMoneyInput(formData.get("amount"));
+  if (!amount) {
+    return { fieldErrors: { amount: "Enter a discount amount, or 0 to clear it." } };
+  }
+
+  try {
+    await applySaleDiscount(required(formData, "id"), {
+      amount,
+      reason: text(formData, "reason"),
+    });
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  refresh();
+  return { ok: true };
+}
+
 export async function recordSalePaymentAction(
   _previous: ActionState,
   formData: FormData,

@@ -21,9 +21,17 @@ export type Sale = {
   sale_number: string;
   status_code: SaleStatus;
   status_label: string;
+  /** Already NET of any discount — this is what the customer owes. */
   total_amount: Money;
   amount_paid: Money;
   balance_due: Money;
+  /** BR-67. `subtotal_amount` is the line total before the discount, computed
+   * by the API rather than here so the arithmetic stays out of JS (NFR-01). */
+  discount_amount: Money;
+  subtotal_amount: Money;
+  discount_reason: string | null;
+  discounted_at: string | null;
+  discounted_by: string | null;
   finalized_at: string | null;
   customer_name: string;
   customer_number: string;
@@ -35,6 +43,8 @@ export type SaleTotals = {
   invoiced: Money;
   received: Money;
   outstanding: Money;
+  /** BR-67 — reported beside `invoiced`, not added back into it. */
+  discounted: Money;
 };
 
 /** `totals` respects every applied filter; with `itemType` set they are
@@ -284,9 +294,36 @@ export function deleteSalePayment(paymentId: Id) {
   return apiFetch<void>(`/sale-payments/${paymentId}`, { method: "DELETE" });
 }
 
+/** Writes are camelCase; `amount` is a decimal string like every other money
+ * field, and "0" clears the discount. */
+export type SaleDiscountInput = {
+  amount: Money;
+  reason?: string;
+};
+
 export function recordSalePayment(id: Id, input: SalePaymentInput) {
   return apiFetch<SalePayment>(`/sales/${id}/payments`, {
     method: "POST",
+    body: input,
+  });
+}
+
+/**
+ * BR-67..BR-69 — set, change or clear the sale's one discount.
+ *
+ * A discount is not a payment: it moves no cash and posts nothing to the
+ * ledger, it reduces what is owed. `amount: "0"` clears it, which is why there
+ * is no delete counterpart.
+ *
+ * PATCH, not POST — a sale has at most one discount, so sending it twice
+ * replaces rather than accumulates. The API refuses anything above the line
+ * subtotal or below what has already been paid (BR-68), and refuses any change
+ * at all once the sale is settled (BR-69); those sentences name the ceiling and
+ * are passed through to the user verbatim.
+ */
+export function applySaleDiscount(id: Id, input: SaleDiscountInput) {
+  return apiFetch<Sale>(`/sales/${id}/discount`, {
+    method: "PATCH",
     body: input,
   });
 }

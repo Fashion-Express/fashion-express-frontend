@@ -167,6 +167,7 @@ export default async function SalesPage(props: PageProps<"/sales">) {
                   <Th>Shop</Th>
                   <Th>Status</Th>
                   <Th>Finalized</Th>
+                  <Th align="right">Discount</Th>
                   <Th align="right">Total</Th>
                   <Th align="right">Paid</Th>
                   <Th align="right">Due</Th>
@@ -189,6 +190,11 @@ export default async function SalesPage(props: PageProps<"/sales">) {
                     <StatusPill tone={STATUS_TONE[sale.status_code]}>{sale.status_label}</StatusPill>
                   </Td>
                   <Td mono>{sale.finalized_at ? formatDate(sale.finalized_at) : "—"}</Td>
+                  {/* BR-67 — a dash rather than 0.00, so the eye finds the
+                      sales that actually carry one down a long column. */}
+                  <Td align="right" mono>
+                    {isZero(sale.discount_amount) ? "—" : formatMoney(sale.discount_amount)}
+                  </Td>
                   <Td align="right" mono>{formatMoney(sale.total_amount)}</Td>
                   <Td align="right" mono>{formatMoney(sale.amount_paid)}</Td>
                   <Td
