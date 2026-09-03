@@ -18,6 +18,15 @@ import { getMe } from "@/lib/auth/session";
  * BR-01 still governs what comes back: an employee asking for another user's
  * invoice gets the API's 404, which is passed through unchanged.
  */
+
+/**
+ * A full workbook export is built on demand by the API, and the default
+ * serverless timeout (10s) cuts the stream off mid-file rather than failing
+ * loudly. This is the ceiling, not a reservation: a small attachment still
+ * returns as fast as it always did.
+ */
+export const maxDuration = 60;
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
