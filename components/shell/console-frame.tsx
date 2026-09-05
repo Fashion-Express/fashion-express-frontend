@@ -11,9 +11,10 @@ import type { NavGroup } from "./nav";
  * Holds the one piece of state the shell needs: whether the sidebar drawer is
  * open on a narrow screen.
  *
- * The mockup's artboards are a fixed 1440px with the rail always visible. Below
- * `lg` that rail would eat most of the viewport, so it becomes a drawer — the
- * markup is the same either way, only its container changes.
+ * The mockup's artboards are a fixed 1440px, where the rail rests at 68px and
+ * widens under the pointer. Below `lg` there is no pointer to widen it with, so
+ * it becomes a drawer, pinned open — the markup is the same either way, only
+ * its container and that one prop change.
  */
 export function ConsoleFrame({
   groups,
@@ -52,10 +53,20 @@ export function ConsoleFrame({
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen]);
 
-  const sidebar = (
+  /*
+    FR-01.6 — the low-stock count already rides the top bar. The rail's badge is
+    the same number, so the one signal the collapsed 68px rail can carry (an
+    accent dot on Inventory) is never a claim the top bar contradicts. No count
+    is invented for the rows the mockup badges but this shell cannot answer.
+  */
+  const badges = lowStockCount > 0 ? { "/inventory": lowStockCount } : undefined;
+
+  const sidebar = (expanded: boolean) => (
     <Sidebar
       groups={groups}
       user={user}
+      badges={badges}
+      expanded={expanded}
       signOutAction={signOutAction}
       onNavigate={() => setDrawerOpen(false)}
     />
@@ -63,7 +74,7 @@ export function ConsoleFrame({
 
   return (
     <div className="flex h-dvh overflow-hidden bg-canvas">
-      <div className="hidden lg:block">{sidebar}</div>
+      <div className="hidden lg:block">{sidebar(false)}</div>
 
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
@@ -73,7 +84,7 @@ export function ConsoleFrame({
             onClick={() => setDrawerOpen(false)}
             className="absolute inset-0 cursor-default bg-[rgb(26_23_20_/_0.5)]"
           />
-          <div className="relative animate-fade-up">{sidebar}</div>
+          <div className="relative animate-fade-up">{sidebar(true)}</div>
         </div>
       )}
 

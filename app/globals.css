@@ -168,7 +168,9 @@
   --spacing-input: 40px;
   --spacing-tall: 48px;
 
-  /* Shell metrics */
+  /* Shell metrics. The sidebar is a 68px icon rail that widens to 236px while
+     it is hovered or holds focus, so both widths are tokens. */
+  --spacing-rail: 68px;
   --spacing-sidebar: 236px;
   --spacing-topbar: 66px;
 
@@ -176,6 +178,9 @@
     0 1px 2px rgb(26 23 20 / 0.06), 0 18px 50px -28px rgb(26 23 20 / 0.28);
   --shadow-modal: 0 30px 60px -20px rgb(26 23 20 / 0.5);
   --shadow-lift: 0 8px 18px -8px rgb(26 23 20 / 0.35);
+
+  /* Cast to the right while the rail is expanded over the page beside it. */
+  --shadow-rail: 22px 0 48px -20px rgb(26 23 20 / 0.55);
 }
 
 /* --------------------------------------------------------------------------
