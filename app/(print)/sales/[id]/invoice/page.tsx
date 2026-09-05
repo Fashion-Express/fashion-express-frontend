@@ -243,9 +243,16 @@ export default async function SaleInvoicePage(
 
         <div className="mt-6 flex justify-end break-inside-avoid">
           <div className="w-full max-w-[300px] text-[11.5px]">
-            {/* The schema carries no tax and no discount, so the sub total is
-                the total. Both are shown because a reader looks for the line. */}
-            <Total label="Sub total" value={formatMoney(sale.total_amount)} />
+            {/* The schema carries no tax, so sub total and total differ only
+                by the discount (BR-67). Both lines are shown either way,
+                because a reader looks for them. */}
+            <Total label="Sub total" value={formatMoney(sale.subtotal_amount)} />
+            {!isZero(sale.discount_amount) && (
+              <Total
+                label="Discount"
+                value={`(-) ${formatMoney(sale.discount_amount)}`}
+              />
+            )}
             <div className="mt-1 border-t border-[#1a1714] pt-1">
               <Total
                 label="Total"

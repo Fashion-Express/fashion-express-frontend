@@ -13,12 +13,13 @@ import { firstParam } from "@/lib/api/types";
 import { safeRedirect } from "@/lib/form";
 import { can, requireSession } from "@/lib/auth/session";
 import { formatDate, formatDateTime, todayInDhaka } from "@/lib/format/date";
-import { formatMoney, formatQuantity, isPositive } from "@/lib/format/money";
+import { formatMoney, formatQuantity, isPositive, isZero } from "@/lib/format/money";
 import { ButtonLink, DownloadLink } from "@/components/ui/button";
 import { Alert, Card, DetailList, EmptyState, PageBody, PageHeader, StatTile, StatusPill } from "@/components/ui/surfaces";
 import { RowActions, RowLink, Table, Td, Th, Tr } from "@/components/ui/table";
 import {
   AddSaleItem,
+  ApplySaleDiscount,
   ConvertQuotation,
   DeleteSale,
   DeleteSalePayment,
@@ -73,6 +74,18 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
    */
   const mayPay =
     can(me, "add_salepayment") && !isCancelled && isPositive(sale.balance_due);
+
+  /*
+   * BR-69 — a discount is editable only while something is still owed, and
+   * never on a cancelled sale or a quotation. Once the balance reaches zero the
+   * button goes: reducing the discount further is arithmetically impossible and
+   * raising it would resurrect a balance on a settled sale.
+   */
+  const mayDiscount =
+    can(me, "change_sale") &&
+    !isCancelled &&
+    !isQuotation &&
+    isPositive(sale.balance_due);
   // Also needed to EDIT a receipt's method, which stays available after the
   // balance reaches zero — so the list is fetched for either reason.
   const mayEditPayments = can(me, "change_salepayment") && sale.payments.length > 0;
@@ -117,6 +130,14 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
               {isQuotation ? "View quotation" : "View invoice"}
             </ButtonLink>
             {isQuotation && can(me, "change_sale") && <ConvertQuotation saleId={sale.id} />}
+            {mayDiscount && (
+              <ApplySaleDiscount
+                saleId={sale.id}
+                subtotal={sale.subtotal_amount}
+                discount={sale.discount_amount}
+                amountPaid={sale.amount_paid}
+              />
+            )}
             {isDraft && can(me, "finalize_sale") && (
               <FinalizeSale saleId={sale.id} total={sale.total_amount} />
             )}
@@ -174,6 +195,23 @@ export default async function SaleDetailPage(props: PageProps<"/sales/[id]">) {
                 value: sale.finalized_at ? formatDateTime(sale.finalized_at) : "—",
                 mono: true,
               },
+              /* BR-67 — only worth a row when there is one; an always-present
+                 "Discount —" line is noise on the sales that never had one. */
+              ...(isZero(sale.discount_amount)
+                ? []
+                : [
+                    {
+                      label: "Discount",
+                      value: `${formatMoney(sale.subtotal_amount)} − ${formatMoney(sale.discount_amount)}`,
+                      mono: true,
+                    },
+                    {
+                      label: "Discounted by",
+                      value: sale.discounted_by
+                        ? `${sale.discounted_by}${sale.discount_reason ? ` — ${sale.discount_reason}` : ""}`
+                        : "—",
+                    },
+                  ]),
               { label: "Created by", value: sale.created_by, mono: true },
             ]}
           />

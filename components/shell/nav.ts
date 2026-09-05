@@ -1,4 +1,5 @@
 import type { Permission } from "@/lib/auth/permissions";
+import { NAV_ICON } from "./nav-icons";
 
 /**
  * The sidebar's contents.
@@ -34,6 +35,13 @@ import type { Permission } from "@/lib/auth/permissions";
 export type NavItem = {
   href: string;
   label: string;
+  /**
+   * The row's line icon: the `d` of one 20x20 path from `nav-icons.ts`. It is
+   * required rather than optional because the collapsed 68px rail shows NOTHING
+   * ELSE — an entry without an icon would be an unlabelled blank row until the
+   * rail is hovered.
+   */
+  icon: string;
   /** Shown when the user holds ANY of these. Empty means always shown. */
   permissions: Permission[];
   /** Additionally requires manager or superuser. */
@@ -54,13 +62,43 @@ export const NAV: NavGroup[] = [
   {
     label: "Workspace",
     items: [
-      { href: "/dashboard", label: "Dashboard", permissions: [] },
-      { href: "/shops", label: "Shops", permissions: ["view_shops_menu"] },
-      { href: "/customers", label: "Customers", permissions: ["view_customers_menu"] },
-      { href: "/inventory", label: "Inventory", permissions: ["view_inventory_menu"] },
-      { href: "/suppliers", label: "Suppliers", permissions: ["view_suppliers_menu"] },
-      { href: "/expenses", label: "Expenses", permissions: ["view_expenses_menu"] },
-      { href: "/sales", label: "Sales", permissions: ["view_sales_menu"] },
+      { href: "/dashboard", label: "Dashboard", icon: NAV_ICON.dashboard, permissions: [] },
+      {
+        href: "/shops",
+        label: "Shops",
+        icon: NAV_ICON.shops,
+        permissions: ["view_shops_menu"],
+      },
+      {
+        href: "/customers",
+        label: "Customers",
+        icon: NAV_ICON.customers,
+        permissions: ["view_customers_menu"],
+      },
+      {
+        href: "/inventory",
+        label: "Inventory",
+        icon: NAV_ICON.inventory,
+        permissions: ["view_inventory_menu"],
+      },
+      {
+        href: "/suppliers",
+        label: "Suppliers",
+        icon: NAV_ICON.suppliers,
+        permissions: ["view_suppliers_menu"],
+      },
+      {
+        href: "/expenses",
+        label: "Expenses",
+        icon: NAV_ICON.expenses,
+        permissions: ["view_expenses_menu"],
+      },
+      {
+        href: "/sales",
+        label: "Sales",
+        icon: NAV_ICON.sales,
+        permissions: ["view_sales_menu"],
+      },
     ],
   },
   {
@@ -73,10 +111,16 @@ export const NAV: NavGroup[] = [
       // No `view_billclaim` exists: a staff member sees their own claims with
       // `view_my_bills`, and anyone who may review them can obviously read
       // them too. The scope follows the caller, not the URL.
-      { href: "/bills", label: "My bills", permissions: ["view_bills_menu"] },
+      {
+        href: "/bills",
+        label: "My bills",
+        icon: NAV_ICON.myBills,
+        permissions: ["view_bills_menu"],
+      },
       {
         href: "/bills/review",
         label: "Review bills",
+        icon: NAV_ICON.reviewBills,
         permissions: ["view_review_bills_menu"],
         managerOnly: true,
       },
@@ -91,17 +135,25 @@ export const NAV: NavGroup[] = [
       {
         href: "/reports",
         label: "Reports",
+        icon: NAV_ICON.reports,
         permissions: ["view_reports_menu"],
         managerOnly: true,
       },
       // FR-00.6. The mockup omits staff accounts and names "Users & Roles" as
       // its own next step; the backend has had the module all along.
-      { href: "/users", label: "Users", permissions: ["view_users_menu"], managerOnly: true },
+      {
+        href: "/users",
+        label: "Users",
+        icon: NAV_ICON.users,
+        permissions: ["view_users_menu"],
+        managerOnly: true,
+      },
       // FR-12 master data. Reads are ungated on the API, but the screen exists
       // to maintain the list, so the link is shown to whoever can write it.
       {
         href: "/settings/categories",
         label: "Product categories",
+        icon: NAV_ICON.categories,
         permissions: ["view_categories_menu"],
       },
       // FR-12.2 — the other two NAMED lists. Both are optional on a staff
@@ -110,11 +162,13 @@ export const NAV: NavGroup[] = [
       {
         href: "/settings/job-positions",
         label: "Job positions",
+        icon: NAV_ICON.jobPositions,
         permissions: ["view_job_positions_menu"],
       },
       {
         href: "/settings/departments",
         label: "Departments",
+        icon: NAV_ICON.departments,
         permissions: ["view_departments_menu"],
       },
       // FR-00.4 — what each role grants. Administrator-only: anyone who can
@@ -122,10 +176,16 @@ export const NAV: NavGroup[] = [
       {
         href: "/settings/roles",
         label: "Roles & permissions",
+        icon: NAV_ICON.roles,
         permissions: ["view_roles_menu"],
         superuserOnly: true,
       },
-      { href: "/settings/appearance", label: "Settings", permissions: [] },
+      {
+        href: "/settings/appearance",
+        label: "Settings",
+        icon: NAV_ICON.settings,
+        permissions: [],
+      },
     ],
   },
 ];
